@@ -298,7 +298,8 @@ class Epochs(context: ActorContext[ComputeEpochs.TrainCommand]) extends Abstract
           actor ! ComputeInputs.getStats("epoch_0", x)
         }
         var idxW = 2
-        for (l <- 1 until ((Network.HiddenLayers.length)+1)) {
+        for (l <- 2 until ((Network.HiddenLayers.length)+1) by 2) {
+          val test = Network.getHiddenLayersDim(l, "weighted")
           for (x <- 0 until Network.getHiddenLayersDim(l, "hidden")) {
             actorsCount+=1
             val name = "weightedLayer_" + idxW + "_" + x
