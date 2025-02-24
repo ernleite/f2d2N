@@ -117,6 +117,9 @@ class DenseActivationLayer extends ActivationLayer {
       shardReceived(correlationId) = 0
 
       val toUCs = Network.getHiddenLayersDim(layer+1, "weighted")
+      if (layer == 1) {
+        val test = 1
+      }
 
       for (i <- 0 until toUCs) {
         val actorweightedLayer = Network.LayersIntermediateRef("weightedLayer_" + (layer+1) + "_" + i)

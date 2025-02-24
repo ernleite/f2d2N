@@ -588,7 +588,6 @@ object CostManager {
       residu1 = starting2-startIndex2
       val test = (endWeightIndex)%from
       residu2 = from-test
-      val test2 = 1
     }
     else {
       val endWeightIndex = starting2 + weights
@@ -603,9 +602,9 @@ object CostManager {
   }
 
   def getIndex(from:Int, to:Int, position:Int) : Int= {
-    val divide = to/from
-    val pos = divide*position
-    pos
+    val divide = (to/from.toFloat).toFloat
+    val pos = divide*(position)
+    pos.toInt
   }
 
   def applyGradientsLight(mat1: Array[Float], mat2: Array[Float], outputSize:Int, scalar1: Float, scalar2:Float): Array[Float] = {

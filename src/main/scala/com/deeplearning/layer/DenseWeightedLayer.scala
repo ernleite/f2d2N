@@ -112,8 +112,6 @@ class DenseWeightedLayer extends WeightedLayer {
         val weigthsGrouped = weights.grouped(activationsLength).toArray
         val dim = weigthsGrouped.length
         val residu1 = if (weigthsGrouped(dim-1).size == activationsLength) 0 else weigthsGrouped(0).size- weigthsGrouped(dim-1).size
-        val residu = activationsLength - residu1
-
         if (residu1 == 0 ) {
           val weigthsGrouped = weights.grouped(activationsLength).toArray
           w1 =  CostManager.initInputs(weigthsGrouped.flatten, activations, dim)
@@ -137,7 +135,6 @@ class DenseWeightedLayer extends WeightedLayer {
 
       }
       else {
-        val a = activation(correlationId)
         w1 = CostManager.initInputs(weights, activation(correlationId), split)
       }
 
@@ -319,9 +316,6 @@ class DenseWeightedLayer extends WeightedLayer {
         backPropagation(correlationId, w1, learningRate, regularisation, nInputs, sizeact, layer, params)
       }
       else {
-        if (layer ==2) {
-          val test = 1
-        }
         val w1 = CostManager.dotInputs(weights,delta, group)
         backPropagation(correlationId, w1, learningRate, regularisation, nInputs, sizeact, layer, params)
       }
@@ -532,8 +526,6 @@ class DenseWeightedLayer extends WeightedLayer {
         val weigthsGrouped = weightstmp.grouped(activationsLength).toArray
         w1 =  CostManager.initInputs(weigthsGrouped.flatten, activations, dim)
       }
-
-
     }
     else {
       val a = activation(correlationId)
