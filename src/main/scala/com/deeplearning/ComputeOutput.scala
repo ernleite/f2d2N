@@ -5,7 +5,7 @@ import akka.actor.typed.receptionist.{Receptionist, ServiceKey}
 import akka.actor.typed.scaladsl.{AbstractBehavior, ActorContext, Behaviors}
 import breeze.linalg.DenseVector
 import com.deeplearning.ComputeEpochs.{SetStats, TrainCommand}
-import com.deeplearning.CostManager.{dotProduct3, getIndex}
+import com.deeplearning.CostManager.{dotProduct3, getIndex, layerNorm}
 import com.deeplearning.Network.{Epochs, generateRandomBiasFloat}
 
 import java.time.{Duration, Instant}
@@ -114,7 +114,8 @@ class Output(context: ActorContext[ComputeOutput.OutputCommand]) extends Abstrac
 
         if (shards == shardReceived(correlationId) && inProgress(correlationId)) {
           counterTraining +=1
-          val z = CostManager.sum2(weighted(correlationId), bias)
+          val z = if (Network.LayerNorm) layerNorm(CostManager.sum2(weighted(correlationId), bias)) else CostManager.sum2(weighted(correlationId), bias)
+
           activation(correlationId) = ActivationManager.ComputeZ(Network.OutputActivationType, z)
           if (Network.NaN) {
             activation(correlationId) = CostManager.EliminateNaN(activation(correlationId))

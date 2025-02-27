@@ -1,7 +1,7 @@
 package com.deeplearning.layer
 
 import breeze.linalg.{DenseVector, normalize}
-import com.deeplearning.CostManager.dotProduct
+import com.deeplearning.CostManager.{dotProduct, layerNorm}
 import com.deeplearning.{ActivationManager, ComputeActivation, ComputeInputs, ComputeWeighted, CostManager, LayerManager, Network, Normalisation}
 import com.deeplearning.Network.{LearningRate, generateRandomBiasFloat, generateRandomFloat}
 
@@ -87,10 +87,14 @@ class DenseActivationLayer extends ActivationLayer {
     }
 
     if (shards == shardReceived(correlationId) && inProgress(correlationId)) {
-      val z = CostManager.sum2(weighted(correlationId) , bias)
+      var z = CostManager.sum2(weighted(correlationId) , bias)
+
+      if (Network.LayerNorm) {
+        z = layerNorm(z)
+      }
+
       Z += (correlationId -> z)
       activation(correlationId)  = CostManager.ComputeZ(Network.getActivationLayersType(layer), z)
-      val ttt = activation(correlationId)
 
 
       if (Network.dropout > 0) {

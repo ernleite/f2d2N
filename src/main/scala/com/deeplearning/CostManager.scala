@@ -8,6 +8,9 @@ import ai.djl.nn.Activation
 
 
 object CostManager {
+  val scale = 1.0507f
+  val alpha = 1.67326f
+
   def batchNormalize(input: Array[Float], epsilon: Float = 1e-5f): Array[Float] = {
     val mean = input.sum / input.length.toFloat
     val variance = input.map(x => (x - mean) * (x - mean)).sum / input.length.toFloat
@@ -232,7 +235,6 @@ object CostManager {
           val mat = manager.ones(zArray.getShape).sub(sigmoidZ)
           c = sigmoidZ.mul(mat).toFloatArray
         case "Relu" =>
-          val zeros = manager.zeros(zArray.getShape)
           val ones = manager.ones(zArray.getShape)
           c =zArray.gt(0).toType(DataType.FLOAT32, false).mul(ones).toFloatArray
         case "LeakyRelu" =>
@@ -243,7 +245,16 @@ object CostManager {
           val sigmoidX = Activation.sigmoid(zArray)
           val siluX = zArray.mul(sigmoidX)
           c = sigmoidX.add(siluX.mul(zArray.getManager.ones(zArray.getShape).sub(sigmoidX))).toFloatArray
-
+        case "ELu" =>
+          val condition = zArray.gt(0)
+          val positiveValues = manager.ones(zArray.getShape)
+          val negativeValues = zArray.mul(alpha).add(alpha)
+          c = condition.mul(positiveValues).add(condition.logicalNot().mul(negativeValues)).toFloatArray
+        case "SeLu" =>
+          val condition = zArray.gt(0)
+          val positiveValues = manager.ones(zArray.getShape).mul(scale)
+          val negativeValues = zArray.mul(scale).mul(alpha).exp()
+          c = condition.mul(positiveValues).add(condition.logicalNot().mul(negativeValues)).toFloatArray
       }
       zArray.close()
       manager.close()
@@ -267,6 +278,10 @@ object CostManager {
           val sigmoidX = Activation.sigmoid(zArray)
           // Calculate SiLU(x) = x * sigmoid(x)
           c = zArray.mul(sigmoidX).toFloatArray
+        case "ELu" =>
+          c = Activation.elu(zArray,alpha).toFloatArray
+        case "SeLu" =>
+          c = Activation.selu(zArray).toFloatArray
       }
       manager.close()
       zArray.close()
@@ -287,6 +302,10 @@ object CostManager {
           val sigmoidX = Activation.sigmoid(zArray)
           // Calculate SiLU(x) = x * sigmoid(x)
           c = zArray.mul(sigmoidX).toFloatArray
+        case "ELu" =>
+          c = Activation.elu(zArray, alpha).toFloatArray
+        case "SeLu" =>
+          c = Activation.selu(zArray).toFloatArray
       }
       manager.close()
       zArray.close()
@@ -601,10 +620,37 @@ object CostManager {
     Array(residu1, residu2)
   }
 
+
+
   def getIndex(from:Int, to:Int, position:Int) : Int= {
     val divide = (to/from.toFloat).toFloat
     val pos = divide*(position)
     pos.toInt
+  }
+
+  def layerNormalization(input: Array[Float], epsilon: Float = 1e-5f): Array[Float] = {
+    // Create an NDManager to manage memory
+    val manager = NDManager.newBaseManager()
+
+    try {
+      // Convert input Array[Float] to NDArray
+      val inputNDArray = manager.create(input)
+
+      // Calculate mean
+      val mean = inputNDArray.mean()
+
+      // Calculate variance
+      val variance = inputNDArray.sub(mean).pow(2).mean()
+
+      // Normalize the input
+      val normalized = inputNDArray.sub(mean).div(variance.add(epsilon).sqrt())
+
+      // Convert the result back to Array[Float]
+      normalized.toFloatArray
+    } finally {
+      // Close the NDManager to release resources
+      manager.close()
+    }
   }
 
   def applyGradientsLight(mat1: Array[Float], mat2: Array[Float], outputSize:Int, scalar1: Float, scalar2:Float): Array[Float] = {
@@ -686,53 +732,6 @@ object CostManager {
     }
   }
 
-  def dotMirrorInputs(mat1: Array[Float], mat2: Array[Float], outputSize:Int): Array[Float] = {
-    if (Network.GpuMode) {
-
-      val gpuManager: NDManager = NDManager.newBaseManager(Device.gpu(0))
-      val array1 = gpuManager.create(mat1)
-      val array2 = gpuManager.create(mat2)
-      val fromMat1: NDArray = gpuManager.from(array1)
-      val fromMat2: NDArray = gpuManager.from(array2)
-      // Reshape concmat1 to (30, 10)
-      val matrixA2D = fromMat1.reshape(mat1.size, 1)
-      val matrixB2D = fromMat2.reshape(1, mat2.size)
-
-      val result =  matrixA2D.matMul(matrixB2D)
-      // Reshape the result to [30, 10, 256, 30]
-      val reshaped = result.reshape(outputSize, mat1.size/outputSize, mat2.size/outputSize, outputSize)
-
-      // Sum over the first and last dimensions
-      val summed = reshaped.sum(Array(0, 3))
-
-      // The result should now be of shape [10, 256]
-      val c = summed.reshape(-1).toFloatArray
-      // Perform matrix multiplication for each group and sum the results
-      fromMat1.close()
-      fromMat2.close()
-      matrixA2D.close()
-      matrixB2D.close()
-      gpuManager.close()
-
-      c
-    }
-    else {
-      val cpuManager: NDManager = NDManager.newBaseManager(Device.cpu())
-      val array1 = cpuManager.create(mat1)
-      val array2 = cpuManager.create(mat2)
-      val fromMat1: NDArray = cpuManager.from(array1)
-      val fromMat2: NDArray = cpuManager.from(array2)
-      val weights = fromMat1.reshape(outputSize,mat2.size)
-      // 3. Perform linear transformation
-      val c=weights.matMul(fromMat2).toFloatArray
-      fromMat1.close()
-      fromMat2.close()
-      weights.close()
-      cpuManager.close
-      c
-    }
-  }
-
   def dotInputs(mat1: Array[Float], mat2: Array[Float], outputSize:Int): Array[Float] = {
     if (Network.GpuMode) {
 
@@ -742,7 +741,6 @@ object CostManager {
       val fromMat1: NDArray = gpuManager.from(array1)
       val fromMat2: NDArray = gpuManager.from(array2)
       val weights = fromMat1.reshape(mat2.size,outputSize)
-      // 3. Perform linear transformation
       val c= fromMat2.transpose().matMul(weights).toFloatArray
       array1.close()
       array2.close()
@@ -759,8 +757,6 @@ object CostManager {
       val fromMat1: NDArray = cpuManager.from(array1)
       val fromMat2: NDArray = cpuManager.from(array2)
       val weights = fromMat1.reshape(mat2.size,outputSize)
-      // 3. Perform linear transformation
-      val test = weights.toFloatArray
       val c= fromMat2.transpose().matMul(weights).toFloatArray
       array1.close()
       array2.close()

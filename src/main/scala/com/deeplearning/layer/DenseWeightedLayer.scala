@@ -244,7 +244,6 @@ class DenseWeightedLayer extends WeightedLayer {
         var endIndex = 0
 
         val residu1 = if (weigthsGrouped(dim-1).size == activationsLength) 0 else weigthsGrouped(0).size- weigthsGrouped(dim-1).size
-        val residu = activationsLength - residu1
 
         if (residu1 == 0 ) {
           if (internalSubLayer == 0) {
@@ -273,29 +272,7 @@ class DenseWeightedLayer extends WeightedLayer {
         }
         else if ((internalSubLayer+1) < sizeact) {
           val indexes = CostManager.getRange(weights.length, activationsLength, fromArraySize, internalSubLayer)
-          var weightstmp = Array.fill(indexes(0))(0.0f) ++ weights ++  Array.fill(indexes(1))(0.0f)
-          /*
-          if (internalSubLayer == 1  || internalSubLayer == 4) {
-            if (sizeact == 3)
-              weightstmp = Array.fill(residu)(0.0f) ++ weights ++  Array.fill(residu)(0.0f)
-            else
-              weightstmp = Array.fill(60)(0.0f) ++ weights ++  Array.fill(60)(0.0f)
-          }
-          else if (internalSubLayer == 2 || internalSubLayer == 5) {
-            weightstmp = Array.fill(30)(0.0f) ++ weights
-          }
-          else if (internalSubLayer == 3 ) {
-            weightstmp = weights ++  Array.fill(30)(0.0f)
-          }
-          */
-          var offset = 0
-          val multiplier = if (delta.length%sectionSize==0)delta.length/sectionSize else delta.length/sectionSize+1
-
-          startIndex = f*internalSubLayer-1*internalSubLayer
-
-          if (internalSubLayer == 4)
-            offset = -1
-          startIndex = multiplier*internalSubLayer-1+offset
+          val weightstmp = Array.fill(indexes(0))(0.0f) ++ weights ++  Array.fill(indexes(1))(0.0f)
           startIndex = getIndex(sizeact, delta.length, internalSubLayer)
           val weigthsGrouped = weightstmp.grouped(activationsLength).toArray
           endIndex = startIndex+weigthsGrouped.length
@@ -303,15 +280,10 @@ class DenseWeightedLayer extends WeightedLayer {
           w1 = CostManager.dotInputs( weigthsGrouped.flatten,dlt2, activationsLength)
         }
         else if ((internalSubLayer+1) ==sizeact) {
-
           val weightstmp = Array.fill(residu1)(0.0f) ++ weights
           val weigthsGrouped = weightstmp.grouped(activationsLength).toArray
-
           val dlt = delta.slice(delta.length - weigthsGrouped.length, delta.length)
           w1 = CostManager.dotInputs( weigthsGrouped.flatten,dlt, activationsLength)
-        }
-        if (layer ==2) {
-          val test = 1
         }
         backPropagation(correlationId, w1, learningRate, regularisation, nInputs, sizeact, layer, params)
       }
@@ -350,10 +322,7 @@ class DenseWeightedLayer extends WeightedLayer {
           val mat2Reshaped = fromMat2.reshape(Network.MiniBatch, 1, act.size/Network.MiniBatch)
 
           val result = mat1Reshaped.matMul(mat2Reshaped)
-          val tr = result.toFloatArray
           var s = result.sum(Array(0)).reshape(-1).toFloatArray
-
-          // Reshape the result to [50,1]
 
           if (internalSubLayer==0) {
             s = s.take(weights.length)
@@ -372,7 +341,6 @@ class DenseWeightedLayer extends WeightedLayer {
             w2 = s
           else
             w2 = CostManager.sum2(w2,s)
-
 
           this.weights = CostManager.applyGradientsLight(w2, weights,Network.MiniBatch,learningRate / Network.MiniBatch, 1 - learningRate * (regularisation / nInputs))
         }
@@ -504,7 +472,6 @@ class DenseWeightedLayer extends WeightedLayer {
       val weigthsGrouped = weights.grouped(activationsLength).toArray
       val dim = weigthsGrouped.length
       val residu1 = if (weigthsGrouped(dim-1).size == activationsLength) 0 else weigthsGrouped(0).size- weigthsGrouped(dim-1).size
-      val residu = activationsLength - residu1
 
       if (residu1 == 0 ) {
         val weigthsGrouped = weights.grouped(activationsLength).toArray
