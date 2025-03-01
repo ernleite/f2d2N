@@ -84,7 +84,6 @@ object CostManager {
       manager.close()
       (lossOutput(0),tmp3)
 
-
     }
     else {
 
@@ -127,7 +126,6 @@ object CostManager {
       tmp3
     }
     else {
-
       val manager: NDManager = NDManager.newBaseManager(Device.cpu())
       val nabla : NDArray = manager.create(nablas).reshape(nablas.size/size, size).sum(Array(0))
       val biases : NDArray = manager.create(bias)
@@ -135,7 +133,6 @@ object CostManager {
       val tmp3  = biases.subi(tmp2).toFloatArray
       nabla.close()
       biases.close()
-
       manager.close()
       tmp3
 
@@ -219,6 +216,16 @@ object CostManager {
           val sigmoidX = Activation.sigmoid(zArray)
           val siluX = zArray.mul(sigmoidX)
           c = sigmoidX.add(siluX.mul(zArray.getManager.ones(zArray.getShape).sub(sigmoidX))).toFloatArray
+        case "ELu" =>
+          val condition = zArray.gt(0)
+          val positiveValues = manager.ones(zArray.getShape)
+          val negativeValues = zArray.mul(alpha).add(alpha)
+          c = condition.mul(positiveValues).add(condition.logicalNot().mul(negativeValues)).toFloatArray
+        case "SeLu" =>
+          val condition = zArray.gt(0)
+          val positiveValues = manager.ones(zArray.getShape).mul(scale)
+          val negativeValues = zArray.mul(scale).mul(alpha).exp()
+          c = condition.mul(positiveValues).add(condition.logicalNot().mul(negativeValues)).toFloatArray
       }
       zArray.close()
       manager.close()
@@ -430,7 +437,6 @@ object CostManager {
   def dotProduct(mat1 : Array[Float], mat2: Array[Float]) : Array[Float] = {
     if (Network.GpuMode) {
       val manager: NDManager = NDManager.newBaseManager(Device.gpu(0))
-
       val array1 = manager.create(mat1)
       val array2 = manager.create(mat2)
       val fromMat1: NDArray = manager.from(array1)
@@ -469,14 +475,10 @@ object CostManager {
       val array2 = GpuManager.create(mat2)
       val fromMat1: NDArray = GpuManager.from(array1)
       val fromMat2: NDArray = GpuManager.from(array2)
-
-     // val output2 =  (DenseVector(mat2) * DenseVector(mat1).t).toArray.grouped(mat2.size).toArray
-      // Perform element-wise multiplication
       val matrixA2D = fromMat1.reshape(mat1.size, 1)
       val matrixB2D = fromMat2.reshape(1, mat2.size)
 
       val result =  matrixA2D.matMul(matrixB2D).toFloatArray
-
       fromMat1.close()
       fromMat2.close()
       array1.close()
@@ -490,9 +492,6 @@ object CostManager {
       val array2 = GpuManager.create(mat2)
       val fromMat1: NDArray = GpuManager.from(array1)
       val fromMat2: NDArray = GpuManager.from(array2)
-
-      // val output2 =  (DenseVector(mat2) * DenseVector(mat1).t).toArray.grouped(mat2.size).toArray
-      // Perform element-wise multiplication
       val matrixA2D = fromMat1.reshape(mat1.size, 1)
       val matrixB2D = fromMat2.reshape(1, mat2.size)
 
@@ -532,65 +531,31 @@ object CostManager {
   }
 
   def applyGradients(mat1: Array[Float], mat2: Array[Float], outputSize:Int, scalar1: Float, scalar2:Float, mat3:Array[Float]): Array[Float] = {
-    if (Network.GpuMode) {
-      val gpuManager: NDManager = NDManager.newBaseManager(Device.gpu(0))
-      val array1 = gpuManager.create(mat1)
-      val array2 = gpuManager.create(mat2)
-      val array3 = gpuManager.create(mat3)
+    val manager: NDManager = if(Network.GpuMode) NDManager.newBaseManager(Device.gpu(0)) else NDManager.newBaseManager(Device.cpu())
+    val array1 = manager.create(mat1)
+    val array2 = manager.create(mat2)
+    val array3 = manager.create(mat3)
 
-      val fromMat1: NDArray = gpuManager.from(array1)
-      val fromMat2: NDArray = gpuManager.from(array2)
-      val fromMat3: NDArray = gpuManager.from(array3)
+    val fromMat1: NDArray = manager.from(array1)
+    val fromMat2: NDArray = manager.from(array2)
+    val fromMat3: NDArray = manager.from(array3)
 
-      val mat1Reshaped = fromMat1.reshape(outputSize,mat1.size/ outputSize, 1)
-      val mat2Reshaped = fromMat2.reshape(outputSize, 1, mat2.size/outputSize)
+    val mat1Reshaped = fromMat1.reshape(outputSize,mat1.size/ outputSize, 1)
+    val mat2Reshaped = fromMat2.reshape(outputSize, 1, mat2.size/outputSize)
 
-      val result = mat1Reshaped.matMul(mat2Reshaped)
-      val tr = result.toFloatArray
-      val summedResult = result.sum(Array(0)).reshape(-1)
-      val test = summedResult.toFloatArray
-      val tmp2 = summedResult.mul(scalar1)
-      val tmp1 = fromMat3.mul(scalar2)
-      val c = tmp1.sub(tmp2).toFloatArray
-      // Perform matrix multiplication for each group and sum the results
-      fromMat3.close()
-      fromMat1.close()
-      fromMat2.close()
-      mat1Reshaped.close()
-      mat2Reshaped.close()
-
-      gpuManager.close()
-      c
-    }
-    else {
-      val cpuManager: NDManager = NDManager.newBaseManager(Device.cpu())
-      val array1 = cpuManager.create(mat1)
-      val array2 = cpuManager.create(mat2)
-      val array3 = cpuManager.create(mat3)
-
-      val fromMat1: NDArray = cpuManager.from(array1)
-      val fromMat2: NDArray = cpuManager.from(array2)
-      val fromMat3: NDArray = cpuManager.from(array3)
-
-      val mat1Reshaped = fromMat1.reshape(outputSize,mat1.size/ outputSize, 1)
-      val mat2Reshaped = fromMat2.reshape(outputSize, 1, mat2.size/outputSize)
-
-      // Perform batch matrix multiplication
-      val result = mat1Reshaped.matMul(mat2Reshaped)
-      val result2 = result.toFloatArray
-      // If you need to sum these results to get a single (10, 256) matrix
-      val summedResult = result.sum(Array(0)).reshape(-1)
-      val tmp2 = summedResult.mul(scalar1)
-      val tmp1 = fromMat3.mul(scalar2)
-      val c = tmp1.sub(tmp2).toFloatArray
-      mat1Reshaped.close()
-      mat2Reshaped.close()
-      fromMat3.close()
-      fromMat1.close()
-      fromMat2.close()
-      cpuManager.close()
-      c
-    }
+    // Perform batch matrix multiplication
+    val result = mat1Reshaped.matMul(mat2Reshaped)
+    val summedResult = result.sum(Array(0)).reshape(-1)
+    val tmp2 = summedResult.mul(scalar1)
+    val tmp1 = fromMat3.mul(scalar2)
+    val c = tmp1.sub(tmp2).toFloatArray
+    mat1Reshaped.close()
+    mat2Reshaped.close()
+    fromMat3.close()
+    fromMat1.close()
+    fromMat2.close()
+    manager.close()
+    c
   }
 
   def getRange(weights: Int, from: Int, to:Int, layer: Int): Array[Int] = {
@@ -619,8 +584,6 @@ object CostManager {
 
     Array(residu1, residu2)
   }
-
-
 
   def getIndex(from:Int, to:Int, position:Int) : Int= {
     val divide = (to/from.toFloat).toFloat
@@ -654,42 +617,23 @@ object CostManager {
   }
 
   def applyGradientsLight(mat1: Array[Float], mat2: Array[Float], outputSize:Int, scalar1: Float, scalar2:Float): Array[Float] = {
-    if (Network.GpuMode) {
-      val gpuManager: NDManager = NDManager.newBaseManager(Device.gpu(0))
-      val array1 = gpuManager.create(mat1)
-      val array2 = gpuManager.create(mat2)
+    val manager: NDManager = if(Network.GpuMode) NDManager.newBaseManager(Device.gpu(0)) else NDManager.newBaseManager(Device.cpu())
+    val array1 = manager.create(mat1)
+    val array2 = manager.create(mat2)
 
-      val fromMat1: NDArray = gpuManager.from(array1)
-      val mat2Reshaped = fromMat1.reshape(outputSize, 1, mat1.size/outputSize)
-      val fromMat2: NDArray = gpuManager.from(array2)
+    val fromMat1: NDArray = manager.from(array1)
+    val mat1Reshaped = fromMat1.reshape(1, 1, mat1.size)
+    val fromMat2: NDArray = manager.from(array2)
 
-      val tmp2 = mat2Reshaped.mul(scalar1)
-      val tmp1 = fromMat2.mul(scalar2)
-      val c = tmp1.sub(tmp2).toFloatArray
-      fromMat1.close()
-      fromMat2.close()
-      gpuManager.close()
-      c
-    }
-    else {
-      val cpuManager: NDManager = NDManager.newBaseManager(Device.cpu())
-      val array1 = cpuManager.create(mat1)
-      val array2 = cpuManager.create(mat2)
+    val tmp2 = mat1Reshaped.mul(scalar1)
+    val test = tmp2.toFloatArray
+    val tmp1 = fromMat2.mul(scalar2)
+    val c = tmp1.sub(tmp2).toFloatArray
 
-      val fromMat1: NDArray = cpuManager.from(array1)
-      val mat1Reshaped = fromMat1.reshape(1, 1, mat1.size)
-      val fromMat2: NDArray = cpuManager.from(array2)
-
-      val tmp2 = mat1Reshaped.mul(scalar1)
-      val test = tmp2.toFloatArray
-      val tmp1 = fromMat2.mul(scalar2)
-      val c = tmp1.sub(tmp2).toFloatArray
-
-      fromMat1.close()
-      fromMat2.close()
-      cpuManager.close()
-      c
-    }
+    fromMat1.close()
+    fromMat2.close()
+    manager.close()
+    c
   }
 
   def roundUpIfFractional(d: Double): Int = {
@@ -697,542 +641,200 @@ object CostManager {
     if (d > intPart) intPart + 1 else intPart
   }
 
-  def applyGradients2(mat1: Array[Float], scalar1: Float, scalar2:Float, mat2:Array[Float]): Array[Float] = {
-    if (Network.GpuMode) {
-      val gpuManager: NDManager = NDManager.newBaseManager(Device.gpu(0))
-      val array1 = gpuManager.create(mat1)
-      val array2 = gpuManager.create(mat2)
-      val fromMat1: NDArray = gpuManager.from(array1)
-      val fromMat2: NDArray = gpuManager.from(array2)
-
-      val tmp2 = fromMat1.mul(scalar1)
-      val tmp1 = fromMat2.mul(scalar2)
-      val c = tmp1.sub(tmp2).toFloatArray
-      // Perform matrix multiplication for each group and sum the results
-      fromMat1.close()
-      fromMat2.close()
-      gpuManager.close()
-      c
-    }
-    else {
-      val cpuManager: NDManager = NDManager.newBaseManager(Device.cpu())
-
-      val array1 = cpuManager.create(mat1)
-      val array2 = cpuManager.create(mat2)
-      val fromMat1: NDArray = cpuManager.from(array1)
-      val fromMat2: NDArray = cpuManager.from(array2)
-
-      val tmp2 = fromMat1.mul(scalar1)
-      val tmp1 = fromMat2.mul(scalar2)
-      val c = tmp1.sub(tmp2).toFloatArray
-      fromMat1.close()
-      fromMat2.close()
-      cpuManager.close()
-      c
-    }
-  }
-
   def dotInputs(mat1: Array[Float], mat2: Array[Float], outputSize:Int): Array[Float] = {
-    if (Network.GpuMode) {
-
-      val gpuManager: NDManager = NDManager.newBaseManager(Device.gpu(0))
-      val array1 = gpuManager.create(mat1)
-      val array2 = gpuManager.create(mat2)
-      val fromMat1: NDArray = gpuManager.from(array1)
-      val fromMat2: NDArray = gpuManager.from(array2)
-      val weights = fromMat1.reshape(mat2.size,outputSize)
-      val c= fromMat2.transpose().matMul(weights).toFloatArray
-      array1.close()
-      array2.close()
-      fromMat1.close()
-      fromMat2.close()
-      weights.close()
-      gpuManager.close()
-      c
-    }
-    else {
-      val cpuManager: NDManager = NDManager.newBaseManager(Device.cpu())
-      val array1 = cpuManager.create(mat1)
-      val array2 = cpuManager.create(mat2)
-      val fromMat1: NDArray = cpuManager.from(array1)
-      val fromMat2: NDArray = cpuManager.from(array2)
-      val weights = fromMat1.reshape(mat2.size,outputSize)
-      val c= fromMat2.transpose().matMul(weights).toFloatArray
-      array1.close()
-      array2.close()
-      fromMat1.close()
-      fromMat2.close()
-      weights.close()
-      cpuManager.close()
-      c
-    }
+    val manager: NDManager = if(Network.GpuMode) NDManager.newBaseManager(Device.gpu(0)) else NDManager.newBaseManager(Device.cpu())
+    val array1 = manager.create(mat1)
+    val array2 = manager.create(mat2)
+    val fromMat1: NDArray = manager.from(array1)
+    val fromMat2: NDArray = manager.from(array2)
+    val weights = fromMat1.reshape(mat2.size,outputSize)
+    val c= fromMat2.transpose().matMul(weights).toFloatArray
+    array1.close()
+    array2.close()
+    fromMat1.close()
+    fromMat2.close()
+    weights.close()
+    manager.close()
+    c
   }
 
   def initInputs(mat1: Array[Float], mat2: Array[Float], outputSize:Int): Array[Float] = {
-    if (Network.GpuMode) {
-      val gpuManager: NDManager = NDManager.newBaseManager(Device.gpu(0))
-      val array1 = gpuManager.create(mat1)
-      val array2 = gpuManager.create(mat2)
-      val fromMat1: NDArray = gpuManager.from(array1)
-      val fromMat2: NDArray = gpuManager.from(array2)
-      val weights = fromMat1.reshape(outputSize,mat2.size)
-      // 3. Perform linear transformation
-      val c=weights.matMul(fromMat2).toFloatArray
-      array1.close()
-      array2.close()
-      fromMat1.close()
-      fromMat2.close()
-      weights.close()
-      gpuManager.close()
-      c
-    }
-    else {
-      val cpuManager: NDManager = NDManager.newBaseManager(Device.cpu())
-      val array1 = cpuManager.create(mat1)
-      val array2 = cpuManager.create(mat2)
-      val fromMat1: NDArray = cpuManager.from(array1)
-      val fromMat2: NDArray = cpuManager.from(array2)
-      val weights = fromMat1.reshape(outputSize,mat2.size)
-      // 3. Perform linear transformation
-      val c=weights.matMul(fromMat2).toFloatArray
+    val manager: NDManager = if(Network.GpuMode) NDManager.newBaseManager(Device.gpu(0)) else NDManager.newBaseManager(Device.cpu())
+    val array1 = manager.create(mat1)
+    val array2 = manager.create(mat2)
+    val fromMat1: NDArray = manager.from(array1)
+    val fromMat2: NDArray = manager.from(array2)
+    val weights = fromMat1.reshape(outputSize,mat2.size)
+    // 3. Perform linear transformation
+    val c=weights.matMul(fromMat2).toFloatArray
 
-      array1.close()
-      array2.close()
-      fromMat1.close()
-      fromMat2.close()
-      weights.close()
-      cpuManager.close
-      c
-    }
+    array1.close()
+    array2.close()
+    fromMat1.close()
+    fromMat2.close()
+    weights.close()
+    manager.close
+    c
   }
 
-  def matMul3(mat1: Array[Float], mat2: Array[Float]): Array[Float] = {
-    if (Network.GpuMode) {
-      val cpuManager: NDManager = NDManager.newBaseManager(Device.gpu(0))
-      val array1 = cpuManager.create(mat1)
-      val array2 = cpuManager.create(mat2)
-      val fromMat1: NDArray = cpuManager.from(array1)
-      val fromMat2: NDArray = cpuManager.from(array2)
-      val c2 = fromMat2.matMul(fromMat1)
-      fromMat2.close()
-      fromMat1.close()
-      array1.close()
-      array2.close()
-      val tmp = c2.toFloatArray
-      c2.close()
-      cpuManager.close()
-      tmp
-    }
-    else {
-      val cpuManager: NDManager = NDManager.newBaseManager(Device.cpu())
-      val array1 = cpuManager.create(mat1)
-      val array2 = cpuManager.create(mat2)
-      val fromMat1: NDArray = cpuManager.from(array1)
-      val fromMat2: NDArray = cpuManager.from(array2)
-      val c2 = fromMat2.matMul(fromMat1)
-      fromMat2.close()
-      fromMat1.close()
-      array1.close()
-      array2.close()
-      val tmp = c2.toFloatArray
-      c2.close()
-      cpuManager.close()
-      tmp
-   }
-  }
 
   def matMul2(mat1:Array[Array[Float]], mat2:Array[Float], size1: Int, size2:Int) : Array[Float] = {
-
-    if (Network.GpuMode) {
-      val cpuManager: NDManager = NDManager.newBaseManager(Device.gpu(0))
-      val array1 = cpuManager.create(mat1)
-      val array2 = cpuManager.create(mat2)
-      val fromMat1: NDArray = cpuManager.from(array1)
-      val fromMat2: NDArray = cpuManager.from(array2)
-      val c2 = fromMat2.matMul(fromMat1)
-      fromMat2.close()
-      fromMat1.close()
-      array1.close()
-      array2.close()
-      val tmp = c2.toFloatArray
-      c2.close()
-      cpuManager.close()
-      tmp
-    }
-    else {
-      val cpuManager: NDManager = NDManager.newBaseManager(Device.cpu())
-      val array1 = cpuManager.create(mat1)
-      val array2 = cpuManager.create(mat2)
-      val fromMat1: NDArray = cpuManager.from(array1)
-      val fromMat2: NDArray = cpuManager.from(array2)
-
-      // Perform the multiplication
-      // Convert Scala arrays to NDArrays
-      val ndArray1 = cpuManager.from(array1).reshape(size2, size1)
-      val ndArray2 = cpuManager.from(array2).reshape(size2, 1)
-
-      // Perform the multiplication and sum the results
-      val result = ndArray1.mul(ndArray2)
-
-      fromMat2.close()
-      fromMat1.close()
-      array1.close()
-      array2.close()
-      val tmp =  result.toFloatArray
-      result.close()
-      cpuManager.close()
-      tmp
-    }
-  }
-
-  def flattenSum(mat1:Array[Array[Float]]) : Array[Float] = {
-
-    if (Network.GpuMode) {
-      val cpuManager: NDManager = NDManager.newBaseManager(Device.gpu(0))
-      val array1 = cpuManager.create(mat1)
-      val fromMat1: NDArray = cpuManager.from(array1)
-      val c2 = fromMat1.sum(Array(0))
-      fromMat1.close()
-      array1.close()
-      val tmp = c2.toFloatArray
-      c2.close()
-      cpuManager.close()
-      tmp
-    }
-    else {
-      val cpuManager: NDManager = NDManager.newBaseManager(Device.cpu())
-      val array1 = cpuManager.create(mat1)
-      val fromMat1: NDArray = cpuManager.from(array1)
-      val c2 = fromMat1.sum(Array(0))
-      fromMat1.close()
-      array1.close()
-      val tmp = c2.toFloatArray
-      c2.close()
-      cpuManager.close()
-      tmp
-    }
-  }
-
-
-  def matMul(mat1:Array[Array[Float]], mat2:Array[Float]) : Array[Float] = {
-
-    if (Network.GpuMode) {
-      val cpuManager: NDManager = NDManager.newBaseManager(Device.gpu(0))
-      val array1 = cpuManager.create(mat1)
-      val array2 = cpuManager.create(mat2)
-      val fromMat1: NDArray = cpuManager.from(array1)
-      val fromMat2: NDArray = cpuManager.from(array2)
-      val c2 = fromMat2.matMul(fromMat1)
-      fromMat2.close()
-      fromMat1.close()
-      array1.close()
-      array2.close()
-      val tmp = c2.toFloatArray
-      c2.close()
-      cpuManager.close()
-      tmp
-    }
-    else {
-      val cpuManager: NDManager = NDManager.newBaseManager(Device.cpu())
-      val array1 = cpuManager.create(mat1)
-      val array2 = cpuManager.create(mat2)
-      val fromMat1: NDArray = cpuManager.from(array1)
-      val fromMat2: NDArray = cpuManager.from(array2)
-      val c2 = fromMat2.matMul(fromMat1)
-      fromMat2.close()
-      fromMat1.close()
-      array1.close()
-      array2.close()
-      val tmp =  c2.toFloatArray
-      c2.close()
-      cpuManager.close()
-      tmp
-    }
-  }
-
-  def dotProduct4(mat1: Array[Array[Float]], mat2: Array[Float]): Array[Float] = {
-    val bT = mat1.transpose
-
-    if (Network.GpuMode) {
-      val GpuManager: NDManager = NDManager.newBaseManager(Device.gpu(0))
-      val array1 = GpuManager.create(bT)
-      val array2 = GpuManager.create(mat2)
-      val fromMat1: NDArray = GpuManager.from(array1)
-      val fromMat2: NDArray = GpuManager.from(array2)
-
-      val c = fromMat1.matMul(fromMat2).toFloatArray
-      fromMat2.close()
-      fromMat1.close()
-      array1.close()
-      array2.close()
-      GpuManager.close()
-      c
-    } else {
-
-      val cpuManager: NDManager = NDManager.newBaseManager(Device.cpu())
-      val array1 = cpuManager.create(bT)
-      val array2 = cpuManager.create(mat2)
-      val fromMat1: NDArray = cpuManager.from(array1)
-      val fromMat2: NDArray = cpuManager.from(array2)
-
-      val c = fromMat1.matMul(fromMat2).toFloatArray
-      fromMat2.close()
-      fromMat1.close()
-      array1.close()
-      array2.close()
-      cpuManager.close()
-      c
-     }
-  }
-
-  def dotProduct6(size: Int, mat1: Array[Array[Float]], mat2: Array[Float]): Array[Float] = {
-    if (Network.GpuMode) {
-      val GpuManager: NDManager = NDManager.newBaseManager(Device.gpu(0))
-      val array1 = GpuManager.create(mat1)
-      val array2 = GpuManager.create(mat2)
-      val fromMat1: NDArray = GpuManager.from(array1)
-      val fromMat2: NDArray = GpuManager.from(array2)
-
-      val c = fromMat1.matMul(fromMat2).toFloatArray
-      fromMat2.close()
-      fromMat1.close()
-      array1.close()
-      array2.close()
-      GpuManager.close()
-      c
-    }
-    else {
-
-      val cpuManager: NDManager = NDManager.newBaseManager(Device.cpu())
-      val array1 = cpuManager.create(mat1)
-      val array2 = cpuManager.create(mat2)
-      val fromMat1: NDArray = cpuManager.from(array1)
-      val fromMat2: NDArray = cpuManager.from(array2)
-
-      val c2 = fromMat1.matMul(fromMat2).toFloatArray
-      fromMat2.close()
-      fromMat1.close()
-      array1.close()
-      array2.close()
-      cpuManager.close()
-      c2
-      }
-  }
-
-  def minusScalar(mat1: Array[Float], scalar: Float): Array[Float] = {
-    if (Network.GpuMode) {
-      val GpuManager: NDManager = NDManager.newBaseManager(Device.gpu(0))
-      val array1 = GpuManager.create(mat1)
-      val fromMat1: NDArray = GpuManager.from(array1)
-
-      val c = fromMat1.subi(scalar).toFloatArray
-      fromMat1.close()
-      array1.close()
-      GpuManager.close()
-      c
-    }
-    else {
-
-      val GpuManager: NDManager = NDManager.newBaseManager(Device.cpu())
-      val array1 = GpuManager.create(mat1)
-      val fromMat1: NDArray = GpuManager.from(array1)
-
-      val c = fromMat1.subi(scalar).toFloatArray
-      fromMat1.close()
-      array1.close()
-      GpuManager.close()
-      c
-     }
-  }
-
-  def minus2(mat1: Array[Float], mat2: Array[Float]): Array[Float] = {
-    if (Network.GpuMode) {
-      val manager: NDManager = NDManager.newBaseManager(Device.gpu(0))
-      val array1 = manager.create(mat1)
-      val array2 = manager.create(mat2)
-      val fromMat1: NDArray = manager.from(array1)
-      val fromMat2: NDArray = manager.from(array2)
-
-      val c = fromMat1.sub(fromMat2).toFloatArray
-      fromMat1.close()
-      fromMat2.close()
-      array1.close()
-      array2.close()
-      manager.close()
-      c
-    }
-    else {
-      val manager: NDManager = NDManager.newBaseManager(Device.cpu())
-      val array1 = manager.create(mat1)
-      val array2 = manager.create(mat2)
-      val fromMat1: NDArray = manager.from(array1)
-      val fromMat2: NDArray = manager.from(array2)
-
-      val c = fromMat1.sub(fromMat2).toFloatArray
-      fromMat1.close()
-      fromMat2.close()
-      array1.close()
-      array2.close()
-      manager.close()
-      c
-     }
-  }
-
-
-  def minus3(size:Int, mat1: Array[Array[Float]], mat2: Array[Float]): Array[Float] = {
-    if (Network.GpuMode) {
-      val manager: NDManager = NDManager.newBaseManager(Device.gpu(0))
-      val array1 = manager.create(mat1)
-      val array2 = manager.create(mat2)
-      val fromMat1: NDArray = manager.from(array1)
-      val fromMat2: NDArray = manager.from(array2)
-
-      val c = fromMat1.sub(fromMat2).toFloatArray
-      fromMat1.close()
-      fromMat2.close()
-      array1.close()
-      array2.close()
-      manager.close()
-      c
-    }
-    else {
-    val manager: NDManager = NDManager.newBaseManager(Device.cpu())
+    val manager: NDManager = if(Network.GpuMode) NDManager.newBaseManager(Device.gpu(0)) else NDManager.newBaseManager(Device.cpu())
     val array1 = manager.create(mat1)
     val array2 = manager.create(mat2)
     val fromMat1: NDArray = manager.from(array1)
     val fromMat2: NDArray = manager.from(array2)
 
-    val c = fromMat1.sub(fromMat2).toFloatArray
+    // Perform the multiplication
+    // Convert Scala arrays to NDArrays
+    val ndArray1 = manager.from(array1).reshape(size2, size1)
+    val ndArray2 = manager.from(array2).reshape(size2, 1)
+
+    // Perform the multiplication and sum the results
+    val result = ndArray1.mul(ndArray2)
+
+    fromMat2.close()
+    fromMat1.close()
+    array1.close()
+    array2.close()
+    val tmp =  result.toFloatArray
+    result.close()
+    manager.close()
+    tmp
+  }
+
+  def flattenSum(mat1:Array[Array[Float]]) : Array[Float] = {
+    val manager: NDManager = if(Network.GpuMode) NDManager.newBaseManager(Device.gpu(0)) else NDManager.newBaseManager(Device.cpu())
+    val array1 = manager.create(mat1)
+    val fromMat1: NDArray = manager.from(array1)
+    val c2 = fromMat1.sum(Array(0))
+    fromMat1.close()
+    array1.close()
+    val tmp = c2.toFloatArray
+    c2.close()
+    manager.close()
+    tmp
+  }
+
+
+  def matMul(mat1:Array[Array[Float]], mat2:Array[Float]) : Array[Float] = {
+    val manager: NDManager = if(Network.GpuMode) NDManager.newBaseManager(Device.gpu(0)) else NDManager.newBaseManager(Device.cpu())
+    val array1 = manager.create(mat1)
+    val array2 = manager.create(mat2)
+    val fromMat1: NDArray = manager.from(array1)
+    val fromMat2: NDArray = manager.from(array2)
+    val c2 = fromMat2.matMul(fromMat1)
+    fromMat2.close()
+    fromMat1.close()
+    array1.close()
+    array2.close()
+    val tmp =  c2.toFloatArray
+    c2.close()
+    manager.close()
+    tmp
+  }
+
+  def dotProduct4(mat1: Array[Array[Float]], mat2: Array[Float]): Array[Float] = {
+    val bT = mat1.transpose
+    val manager: NDManager = if(Network.GpuMode) NDManager.newBaseManager(Device.gpu(0)) else NDManager.newBaseManager(Device.cpu())
+    val array1 = manager.create(bT)
+    val array2 = manager.create(mat2)
+    val fromMat1: NDArray = manager.from(array1)
+    val fromMat2: NDArray = manager.from(array2)
+
+    val c = fromMat1.matMul(fromMat2).toFloatArray
+    fromMat2.close()
+    fromMat1.close()
+    array1.close()
+    array2.close()
+    manager.close()
+    c
+  }
+
+  def dotProduct6(size: Int, mat1: Array[Array[Float]], mat2: Array[Float]): Array[Float] = {
+    val manager: NDManager = if(Network.GpuMode) NDManager.newBaseManager(Device.gpu(0)) else NDManager.newBaseManager(Device.cpu())
+    val array1 = manager.create(mat1)
+    val array2 = manager.create(mat2)
+    val fromMat1: NDArray = manager.from(array1)
+    val fromMat2: NDArray = manager.from(array2)
+
+    val c2 = fromMat1.matMul(fromMat2).toFloatArray
+    fromMat2.close()
+    fromMat1.close()
+    array1.close()
+    array2.close()
+    manager.close()
+    c2
+  }
+
+  def minusScalar(mat1: Array[Float], scalar: Float): Array[Float] = {
+    val manager: NDManager = if(Network.GpuMode) NDManager.newBaseManager(Device.gpu(0)) else NDManager.newBaseManager(Device.cpu())
+    val array1 = manager.create(mat1)
+    val fromMat1: NDArray = manager.from(array1)
+
+    val c = fromMat1.subi(scalar).toFloatArray
+    fromMat1.close()
+    array1.close()
+    manager.close()
+    c
+  }
+
+
+  def minus(mat1: Array[Float], mat2: Array[Float]): Array[Float] = {
+    val manager: NDManager = if(Network.GpuMode) NDManager.newBaseManager(Device.gpu(0)) else NDManager.newBaseManager(Device.cpu())
+    val array1 = manager.create(mat1)
+    val array2 = manager.create(mat2)
+    val fromMat1: NDArray = manager.from(array1)
+    val fromMat2: NDArray = manager.from(array2)
+
+    val c = fromMat1.subi(fromMat2).toFloatArray
     fromMat1.close()
     fromMat2.close()
     array1.close()
     array2.close()
     manager.close()
     c
-    }
-  }
-
-  def minus(mat1: Array[Float], mat2: Array[Float]): Array[Float] = {
-    if (Network.GpuMode) {
-      val manager: NDManager = NDManager.newBaseManager(Device.gpu(0))
-      val array1 = manager.create(mat1)
-      val array2 = manager.create(mat2)
-      val fromMat1: NDArray = manager.from(array1)
-      val fromMat2: NDArray = manager.from(array2)
-
-      val c = fromMat1.subi(fromMat2).toFloatArray
-      fromMat1.close()
-      fromMat2.close()
-      array1.close()
-      array2.close()
-      manager.close()
-      c
-    }
-    else {
-
-      val manager: NDManager = NDManager.newBaseManager(Device.cpu())
-      val array1 = manager.create(mat1)
-      val array2 = manager.create(mat2)
-      val fromMat1: NDArray = manager.from(array1)
-      val fromMat2: NDArray = manager.from(array2)
-
-      val c = fromMat1.subi(fromMat2).toFloatArray
-      fromMat1.close()
-      fromMat2.close()
-      array1.close()
-      array2.close()
-      manager.close()
-      c
-    }
   }
 
   def sum(mat1 : Array[Float], scalar: Float): Array[Float] = {
-    if (Network.GpuMode) {
-      val GpuManager: NDManager = NDManager.newBaseManager(Device.gpu(0))
-      val array1 = GpuManager.create(mat1)
-      val fromMat1: NDArray = GpuManager.from(array1)
+    val manager: NDManager = if(Network.GpuMode) NDManager.newBaseManager(Device.gpu(0)) else NDManager.newBaseManager(Device.cpu())
+    val array1 = manager.create(mat1)
+    val fromMat1: NDArray = manager.from(array1)
 
-      val c = fromMat1.addi(scalar).toFloatArray
-      fromMat1.close()
-      array1.close()
-      GpuManager.close()
-      c
-    }
-    else {
-      val GpuManager: NDManager = NDManager.newBaseManager(Device.cpu())
-      val array1 = GpuManager.create(mat1)
-      val fromMat1: NDArray = GpuManager.from(array1)
-
-      val c = fromMat1.addi(scalar).toFloatArray
-      fromMat1.close()
-      array1.close()
-      GpuManager.close()
-      c
-    }
+    val c = fromMat1.addi(scalar).toFloatArray
+    fromMat1.close()
+    array1.close()
+    manager.close()
+    c
   }
 
   def divide(mat1: Array[Float], scalar: Float): Array[Float] = {
+    val manager: NDManager = if(Network.GpuMode) NDManager.newBaseManager(Device.gpu(0)) else NDManager.newBaseManager(Device.cpu())
+    val array1 = manager.create(mat1)
+    val fromMat1: NDArray = manager.from(array1)
 
-    if (Network.GpuMode) {
-
-      val GpuManager: NDManager = NDManager.newBaseManager(Device.gpu(0))
-      val array1 = GpuManager.create(mat1)
-      val fromMat1: NDArray = GpuManager.from(array1)
-
-      val c = fromMat1.divi(scalar).toFloatArray
-      fromMat1.close()
-      array1.close()
-      GpuManager.close()
-      c
-    }
-    else {
-
-
-      val CpuManager: NDManager = NDManager.newBaseManager(Device.cpu())
-      val array1 = CpuManager.create(mat1)
-      val fromMat1: NDArray = CpuManager.from(array1)
-
-      val c = fromMat1.divi(scalar).toFloatArray
-      fromMat1.close()
-      array1.close()
-      CpuManager.close()
-      c
-    }
+    val c = fromMat1.divi(scalar).toFloatArray
+    fromMat1.close()
+    array1.close()
+    manager.close()
+    c
   }
 
   def sum2(mat1: Array[Float], mat2: Array[Float]): Array[Float] = {
-    if (Network.GpuMode) {
-      val GpuManager: NDManager = NDManager.newBaseManager(Device.gpu(0))
-      val array1 = GpuManager.create(mat1)
-      val array2 = GpuManager.create(mat2)
-      val fromMat1: NDArray = GpuManager.from(array1)
-      val fromMat2: NDArray = GpuManager.from(array2)
+    val manager: NDManager = if(Network.GpuMode) NDManager.newBaseManager(Device.gpu(0)) else NDManager.newBaseManager(Device.cpu())
+    val array1 = manager.create(mat1)
+    val array2 = manager.create(mat2)
+    val fromMat1: NDArray = manager.from(array1)
+    val fromMat2: NDArray = manager.from(array2)
 
-      val c = fromMat1.addi(fromMat2).toFloatArray
-      fromMat1.close()
-      fromMat2.close()
-      array1.close()
-      array2.close()
-      GpuManager.close()
-      c
-    }
-    else {
+    val c = fromMat1.addi(fromMat2).toFloatArray
+    fromMat1.close()
+    fromMat2.close()
+    array1.close()
+    array2.close()
 
-      val CpuManager: NDManager = NDManager.newBaseManager(Device.cpu())
-      val array1 = CpuManager.create(mat1)
-      val array2 = CpuManager.create(mat2)
-      val fromMat1: NDArray = CpuManager.from(array1)
-      val fromMat2: NDArray = CpuManager.from(array2)
-
-      val c = fromMat1.addi(fromMat2).toFloatArray
-      fromMat1.close()
-      fromMat2.close()
-      array1.close()
-      array2.close()
-
-      CpuManager.close()
-      c
-    }
+    manager.close()
+    c
   }
 
   def scalling(array: Array[Float], min: Float, max: Float, rangeX: Float, rangeY: Float): Array[Float] = {
@@ -1243,31 +845,14 @@ object CostManager {
 
 
   def softMax(mat:Array[Float]) : Array[Float] = {
-    /*
-    if (Network.GpuMode) {
+    val manager: NDManager = if(Network.GpuMode) NDManager.newBaseManager(Device.gpu(0)) else NDManager.newBaseManager(Device.cpu())
+    val array1 = manager.create(mat)
+    val fromMat1: NDArray = manager.from(array1)
 
-      val gpuManager: NDManager = NDManager.newBaseManager(Device.gpu(0))
-      val array1 = gpuManager.create(mat)
-      val fromMat1: NDArray = gpuManager.from(array1)
-
-      val c = fromMat1.softmax(0).toFloatArray
-      fromMat1.close()
-      array1.close()
-      gpuManager.close()
-      c
-    }
-    else {
-
-     */
-      val cpuManager: NDManager = NDManager.newBaseManager(Device.cpu())
-      val array1 = cpuManager.create(mat)
-      val fromMat1: NDArray = cpuManager.from(array1)
-
-      val c = fromMat1.softmax(0).toFloatArray
-      fromMat1.close()
-      array1.close()
-      cpuManager.close()
-      c
-    //}
+    val c = fromMat1.softmax(0).toFloatArray
+    fromMat1.close()
+    array1.close()
+    manager.close()
+    c
   }
 }
