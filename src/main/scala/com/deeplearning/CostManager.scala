@@ -113,7 +113,9 @@ object CostManager {
     // For simplicity, we're omitting these learnable parameters
     // xNorm = xNorm.mul(gamma).add(beta)
 
-    xNorm.toFloatArray
+    val c = xNorm.toFloatArray
+    manager.close()
+    c
   }
 
 
