@@ -28,7 +28,7 @@ object Network {
   val OutputActivationType = "SoftMax"
 
   val CostFunction = "CategoricalCrossEntropy"
-  var LearningRate:Float =  0.195f
+  var LearningRate:Float =  0.0195f
   val weightedPenalty = 0.05f
   var InitialLearningRate:Float = LearningRate
   var Regularisation:Float = 5f
@@ -47,7 +47,7 @@ object Network {
   var LeakyReluAlpha:Float = 0.01f
   var NaN:Boolean = false
   var CheckNaN:Boolean = false
-  var dropout:Float = 0.5f//-1 Dropout desactivated
+  var dropout:Float = 0.7f//-1 Dropout desactivated
   val drop = 0.325f
   val epochs_drop = 15
   val debug:Boolean = false

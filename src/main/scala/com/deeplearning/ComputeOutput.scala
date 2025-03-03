@@ -266,7 +266,8 @@ class Output(context: ActorContext[ComputeOutput.OutputCommand]) extends Abstrac
 
         //all received. Lets compute the activation function
         if (shards == shardReceived(correlationId) && inProgress(correlationId)) {
-          val z = CostManager.sum2(weighted(correlationId), bias)
+          val z = if (Network.LayerNorm) layerNorm(CostManager.sum2(weighted(correlationId), bias)) else CostManager.sum2(weighted(correlationId), bias)
+
           //val mav = Normalisation.getMeanAndVariance(z)
           //activation(correlationId) = Normalisation.batchNormalize(activation(correlationId), mav._1, mav._3, 0.1f, 0.1f)
           activation(correlationId) = ActivationManager.ComputeZ(Network.OutputActivationType, z)
