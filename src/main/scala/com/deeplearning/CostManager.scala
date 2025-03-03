@@ -60,116 +60,66 @@ object CostManager {
   import scala.math.log
 
   def categoricalCrossEntropy3(trueLabels: Array[Float], prediction: Array[Float], size:Int, scalar:Float, nablas: Array[Float], bias: Array[Float]): (Float, Array[Float]) = {
-    if (Network.GpuMode) {
-      val manager: NDManager = NDManager.newBaseManager(Device.gpu(0))
-      val pred: NDArray = manager.create(prediction).reshape(trueLabels.size, size)
-      val trueLab : NDArray = manager.create(trueLabels).reshape(trueLabels.size, 1)
-      val nabla : NDArray = manager.create(nablas).reshape(nablas.size/size, size).sum(Array(0))
-      val biases : NDArray = manager.create(bias)
-      val ndList1: NDList = new NDList()
-      ndList1.add(trueLab)
-      val ndList2: NDList = new NDList()
-      ndList2.add(pred)
-      // Calculate the softmax cross-entropy loss for the minibatch
-      val lossOutput = Loss.softmaxCrossEntropyLoss().evaluate(ndList1 , ndList2).toFloatArray
+    val manager: NDManager = if(Network.GpuMode) NDManager.newBaseManager(Device.gpu(0)) else NDManager.newBaseManager(Device.cpu())
+    val pred: NDArray = manager.create(prediction).reshape(trueLabels.size, size)
+    val trueLab : NDArray = manager.create(trueLabels).reshape(trueLabels.size, 1)
+    val nabla : NDArray = manager.create(nablas).reshape(nablas.size/size, size).sum(Array(0))
+    val biases : NDArray = manager.create(bias)
+    val ndList1: NDList = new NDList()
+    ndList1.add(trueLab)
+    val ndList2: NDList = new NDList()
+    ndList2.add(pred)
+    // Calculate the softmax cross-entropy loss for the minibatch
+    val lossOutput = Loss.softmaxCrossEntropyLoss().evaluate(ndList1 , ndList2).toFloatArray
 
-      val tmp2 = nabla.mul(scalar)
-      val tmp3  = biases.subi(tmp2).toFloatArray
+    val tmp2 = nabla.mul(scalar)
+    val tmp3  = biases.subi(tmp2).toFloatArray
 
-      ndList1.close()
-      ndList2.close()
-      pred.close()
-      trueLab.close()
-      // Don't forget to close the manager when done
-      manager.close()
-      (lossOutput(0),tmp3)
-
-    }
-    else {
-
-      val manager: NDManager = NDManager.newBaseManager(Device.cpu())
-      val pred: NDArray = manager.create(prediction).reshape(trueLabels.size, size)
-      val trueLab : NDArray = manager.create(trueLabels).reshape(trueLabels.size, 1)
-      val nabla : NDArray = manager.create(nablas).reshape(nablas.size/size, size).sum(Array(0))
-      val biases : NDArray = manager.create(bias)
-      val ndList1: NDList = new NDList()
-      ndList1.add(trueLab)
-      val ndList2: NDList = new NDList()
-      ndList2.add(pred)
-      // Calculate the softmax cross-entropy loss for the minibatch
-      val lossOutput = Loss.softmaxCrossEntropyLoss().evaluate(ndList1 , ndList2).toFloatArray
-
-      val tmp2 = nabla.mul(scalar)
-      val tmp3  = biases.subi(tmp2).toFloatArray
-
-      ndList1.close()
-      ndList2.close()
-      pred.close()
-      trueLab.close()
-      // Don't forget to close the manager when done
-      manager.close()
-      (lossOutput(0),tmp3)
-
-    }
+    ndList1.close()
+    ndList2.close()
+    pred.close()
+    trueLab.close()
+    // Don't forget to close the manager when done
+    manager.close()
+    (lossOutput(0),tmp3)
   }
 
   def applyBias(size:Int, scalar:Float, nablas: Array[Float], bias: Array[Float]): (Array[Float]) = {
-    if (Network.GpuMode) {
-      val manager: NDManager = NDManager.newBaseManager(Device.gpu(0))
-      val nabla : NDArray = manager.create(nablas).reshape(nablas.size/size, size).sum(Array(0))
-      val biases : NDArray = manager.create(bias)
-      val tmp2 = nabla.mul(scalar)
-      val tmp3  = biases.subi(tmp2).toFloatArray
-      nabla.close()
-      biases.close()
-      manager.close()
-      tmp3
-    }
-    else {
-      val manager: NDManager = NDManager.newBaseManager(Device.cpu())
-      val nabla : NDArray = manager.create(nablas).reshape(nablas.size/size, size).sum(Array(0))
-      val biases : NDArray = manager.create(bias)
-      val tmp2 = nabla.mul(scalar)
-      val tmp3  = biases.subi(tmp2).toFloatArray
-      nabla.close()
-      biases.close()
-      manager.close()
-      tmp3
-
-    }
+    val manager: NDManager = if(Network.GpuMode) NDManager.newBaseManager(Device.gpu(0)) else NDManager.newBaseManager(Device.cpu())
+    val nabla : NDArray = manager.create(nablas).reshape(nablas.size/size, size).sum(Array(0))
+    val biases : NDArray = manager.create(bias)
+    val tmp2 = nabla.mul(scalar)
+    val tmp3  = biases.subi(tmp2).toFloatArray
+    nabla.close()
+    biases.close()
+    manager.close()
+    tmp3
   }
 
   def layerNorm(input: Array[Float], epsilon: Float = 1e-5f): Array[Float] = {
-    if (Network.GpuMode) {
-      val manager: NDManager = NDManager.newBaseManager(Device.gpu(0))
-      val vector : NDArray = manager.create(input)
-      val norm = vector.pow(2).sum().sqrt()
-      // Check if the norm is zero
-      val epsilon = 1e-12 // Small value to avoid division by zero
-      val safeNorm = norm.add(epsilon)
-      // Normalize the vector
-      val c = vector.div(safeNorm).toFloatArray
-      manager.close()
-      c
-    }
-    else {
-      val manager: NDManager = NDManager.newBaseManager(Device.cpu())
-      val vector : NDArray = manager.create(input)
-      val norm = vector.pow(2).sum().sqrt()
-      // Check if the norm is zero
-      val epsilon = 1e-12 // Small value to avoid division by zero
-      val safeNorm = norm.add(epsilon)
-      // Normalize the vector
-      val c = vector.div(safeNorm).toFloatArray
-      manager.close()
-      c
-    }
+    val manager: NDManager = if(Network.GpuMode) NDManager.newBaseManager(Device.gpu(0)) else NDManager.newBaseManager(Device.cpu())
+    val x: NDArray = manager.create(input)
+    val shape = x.getShape
+    val lastDim = shape.dimension() - 1
 
+    // Calculate mean and variance along the last dimension
+    val mean = x.mean(Array(lastDim), true)
+    val variance = x.sub(mean).pow(2).mean(Array(lastDim), true)
+
+    // Normalize
+    val xNorm = x.sub(mean).div(variance.add(epsilon).sqrt())
+
+    // In a full implementation, you would apply gamma and beta here
+    // For simplicity, we're omitting these learnable parameters
+    // xNorm = xNorm.mul(gamma).add(beta)
+
+    xNorm.toFloatArray
   }
 
 
   def categoricalCrossEntropy2(trueLabels: Array[Array[Float]], prediction: Array[Array[Float]]): Float = {
-    val manager: NDManager = NDManager.newBaseManager(Device.cpu())
+    val manager: NDManager = if(Network.GpuMode) NDManager.newBaseManager(Device.gpu(0)) else NDManager.newBaseManager(Device.cpu())
+
     //if (Network.GpuMode) manager = NDManager.newBaseManager(Device.gpu(0))
 
     val pred: NDArray = manager.create(prediction)
@@ -196,43 +146,7 @@ object CostManager {
   }
 
   def ComputePrime(ActivationFunction: String, z: Array[Float]): Array[Float] = {
-    if (Network.GpuMode) {
-      val manager: NDManager = NDManager.newBaseManager(Device.gpu(0))
-      val zArray : NDArray = manager.create(z)
-      var c = Array[Float]()
-      ActivationFunction match {
-        case "Sigmoid" =>
-          val sigmoidZ = Activation.sigmoid(zArray)
-          val mat = manager.ones(zArray.getShape).sub(sigmoidZ)
-          c = sigmoidZ.mul(mat).toFloatArray
-        case "Relu" =>
-          val ones = manager.ones(zArray.getShape)
-          c = zArray.gt(0).toType(DataType.FLOAT32, false).mul(ones).toFloatArray
-        case "LeakyRelu" =>
-          val positiveGradient = zArray.gte(0).toType(DataType.FLOAT32, false)
-          val negativeGradient = zArray.lt(0).toType(DataType.FLOAT32, false).mul(Network.LeakyReluAlpha)
-          c =positiveGradient.add(negativeGradient).toFloatArray
-        case "SiLu" =>
-          val sigmoidX = Activation.sigmoid(zArray)
-          val siluX = zArray.mul(sigmoidX)
-          c = sigmoidX.add(siluX.mul(zArray.getManager.ones(zArray.getShape).sub(sigmoidX))).toFloatArray
-        case "ELu" =>
-          val condition = zArray.gt(0)
-          val positiveValues = manager.ones(zArray.getShape)
-          val negativeValues = zArray.mul(alpha).add(alpha)
-          c = condition.mul(positiveValues).add(condition.logicalNot().mul(negativeValues)).toFloatArray
-        case "SeLu" =>
-          val condition = zArray.gt(0)
-          val positiveValues = manager.ones(zArray.getShape).mul(scale)
-          val negativeValues = zArray.mul(scale).mul(alpha).exp()
-          c = condition.mul(positiveValues).add(condition.logicalNot().mul(negativeValues)).toFloatArray
-      }
-      zArray.close()
-      manager.close()
-      c
-    }
-    else {
-      val manager: NDManager = NDManager.newBaseManager(Device.cpu())
+      val manager: NDManager = if(Network.GpuMode) NDManager.newBaseManager(Device.gpu(0)) else NDManager.newBaseManager(Device.cpu())
       val zArray : NDArray = manager.create(z)
       var c = Array[Float]()
 
@@ -243,7 +157,7 @@ object CostManager {
           c = sigmoidZ.mul(mat).toFloatArray
         case "Relu" =>
           val ones = manager.ones(zArray.getShape)
-          c =zArray.gt(0).toType(DataType.FLOAT32, false).mul(ones).toFloatArray
+          c = zArray.gt(0).toType(DataType.FLOAT32, false).mul(ones).toFloatArray
         case "LeakyRelu" =>
           val positiveGradient = zArray.gte(0).toType(DataType.FLOAT32, false)
           val negativeGradient = zArray.lt(0).toType(DataType.FLOAT32, false).mul(Network.LeakyReluAlpha)
@@ -266,90 +180,36 @@ object CostManager {
       zArray.close()
       manager.close()
       c
-    }
   }
 
   def ComputeZ(ActivationFunction : String, z:Array[Float]) : Array[Float] = {
-    if (Network.GpuMode) {
-      val manager: NDManager = NDManager.newBaseManager(Device.gpu(0))
-      val zArray : NDArray = manager.create(z)
-      var c = Array[Float]()
-      ActivationFunction match {
-        case "Sigmoid" =>
-          c = Activation.sigmoid(zArray).toFloatArray
-        case "Relu" =>
-          c = Activation.relu(zArray).toFloatArray
-        case "LeakyRelu" =>
-          c = Activation.leakyRelu(zArray, Network.LeakyReluAlpha).toFloatArray
-        case "SiLu" =>
-          val sigmoidX = Activation.sigmoid(zArray)
-          // Calculate SiLU(x) = x * sigmoid(x)
-          c = zArray.mul(sigmoidX).toFloatArray
-        case "ELu" =>
-          c = Activation.elu(zArray,alpha).toFloatArray
-        case "SeLu" =>
-          c = Activation.selu(zArray).toFloatArray
-      }
-      manager.close()
-      zArray.close()
-      c
+    val manager: NDManager = if(Network.GpuMode) NDManager.newBaseManager(Device.gpu(0)) else NDManager.newBaseManager(Device.cpu())
+    val zArray : NDArray = manager.create(z)
+    var c = Array[Float]()
+    ActivationFunction match {
+      case "Sigmoid" =>
+        c = Activation.sigmoid(zArray).toFloatArray
+      case "Relu" =>
+        c = Activation.relu(zArray).toFloatArray
+      case "LeakyRelu" =>
+        c = Activation.leakyRelu(zArray, Network.LeakyReluAlpha).toFloatArray
+      case "SiLu" =>
+        val sigmoidX = Activation.sigmoid(zArray)
+        // Calculate SiLU(x) = x * sigmoid(x)
+        c = zArray.mul(sigmoidX).toFloatArray
+      case "ELu" =>
+        c = Activation.elu(zArray, alpha).toFloatArray
+      case "SeLu" =>
+        c = Activation.selu(zArray).toFloatArray
     }
-    else {
-      val manager: NDManager = NDManager.newBaseManager(Device.cpu())
-      val zArray : NDArray = manager.create(z)
-      var c = Array[Float]()
-      ActivationFunction match {
-        case "Sigmoid" =>
-          c = Activation.sigmoid(zArray).toFloatArray
-        case "Relu" =>
-          c = Activation.relu(zArray).toFloatArray
-        case "LeakyRelu" =>
-          c = Activation.leakyRelu(zArray, Network.LeakyReluAlpha).toFloatArray
-        case "SiLu" =>
-          val sigmoidX = Activation.sigmoid(zArray)
-          // Calculate SiLU(x) = x * sigmoid(x)
-          c = zArray.mul(sigmoidX).toFloatArray
-        case "ELu" =>
-          c = Activation.elu(zArray, alpha).toFloatArray
-        case "SeLu" =>
-          c = Activation.selu(zArray).toFloatArray
-      }
-      manager.close()
-      zArray.close()
-      c
-    }
-
+    manager.close()
+    zArray.close()
+    c
   }
 
 
   def categoricalCrossEntropy(trueLabels: Array[Float], prediction: Array[Float]): Float = {
-   /*
-
-      // Generate example prediction and target tensors (replace with your actual data)
-      val array1 = manager.create(trueLabels)
-      val fromMat1: NDArray = manager.from(array1)
-      val fromList: NDList = new NDList()
-      fromList.add(fromMat1)
-      val array2 = manager.create(prediction)
-      val fromMat2: NDArray = manager.from(array2)
-      val fromPred: NDList = new NDList()
-      fromPred.add(fromMat2)
-
-      // Calculate the categorical cross-entropy loss
-      val loss = Loss.softmaxCrossEntropyLoss().evaluate(fromList, fromPred).toFloatArray
-
-      fromMat1.close()
-      fromPred.close()
-      fromList.close()
-      fromMat2.close()
-      manager.close()
-      loss(0)
-    }
-    else {
-
-    */
-      val manager = NDManager.newBaseManager(Device.cpu())
-
+      val manager: NDManager = if(Network.GpuMode) NDManager.newBaseManager(Device.gpu(0)) else NDManager.newBaseManager(Device.cpu())
       // Generate example prediction and target tensors (replace with your actual data)
       val array1 = manager.create(trueLabels)
       val fromMat1: NDArray = manager.from(array1)
@@ -368,8 +228,6 @@ object CostManager {
       fromMat2.close()
       manager.close()
       loss(0)
-
-   // }
   }
 
  def crossEntropyLoss(predictedProbabilities: Array[Float], trueLabels: Array[Float]): Float = {
@@ -435,99 +293,50 @@ object CostManager {
 
 
   def dotProduct(mat1 : Array[Float], mat2: Array[Float]) : Array[Float] = {
-    if (Network.GpuMode) {
-      val manager: NDManager = NDManager.newBaseManager(Device.gpu(0))
-      val array1 = manager.create(mat1)
-      val array2 = manager.create(mat2)
-      val fromMat1: NDArray = manager.from(array1)
-      val fromMat2: NDArray = manager.from(array2)
-      val c = fromMat1.mul(fromMat2).toFloatArray
-      fromMat1.close()
-      fromMat1.close()
-      array1.close()
-      array2.close()
-      manager.close()
-      c
-    }
-    else {
-      val manager: NDManager = NDManager.newBaseManager(Device.cpu())
-      val array1 = manager.create(mat1)
-      val array2 = manager.create(mat2)
-      val fromMat1: NDArray = manager.from(array1)
-      val fromMat2: NDArray = manager.from(array2)
-      val c = fromMat1.mul(fromMat2).toFloatArray
-      fromMat1.close()
-      fromMat1.close()
-      array1.close()
-      array2.close()
-      manager.close()
-      c
-    }
+    val manager: NDManager = if(Network.GpuMode) NDManager.newBaseManager(Device.gpu(0)) else NDManager.newBaseManager(Device.cpu())
+    val array1 = manager.create(mat1)
+    val array2 = manager.create(mat2)
+    val fromMat1: NDArray = manager.from(array1)
+    val fromMat2: NDArray = manager.from(array2)
+    val c = fromMat1.mul(fromMat2).toFloatArray
+    fromMat1.close()
+    fromMat1.close()
+    array1.close()
+    array2.close()
+    manager.close()
+    c
   }
 
   def dotProduct3(size: Int, mat1: Array[Float], mat2: Array[Float]): Array[Float] = {
+    val manager: NDManager = if(Network.GpuMode) NDManager.newBaseManager(Device.gpu(0)) else NDManager.newBaseManager(Device.cpu())
     var output = Array[Array[Float]]()
     output = Array.ofDim(mat1.length)
+    val array1 = manager.create(mat1)
+    val array2 = manager.create(mat2)
+    val fromMat1: NDArray = manager.from(array1)
+    val fromMat2: NDArray = manager.from(array2)
+    val matrixA2D = fromMat1.reshape(mat1.size, 1)
+    val matrixB2D = fromMat2.reshape(1, mat2.size)
 
-    if (Network.GpuMode) {
-      val GpuManager: NDManager = NDManager.newBaseManager(Device.gpu(0))
-      val array1 = GpuManager.create(mat1)
-      val array2 = GpuManager.create(mat2)
-      val fromMat1: NDArray = GpuManager.from(array1)
-      val fromMat2: NDArray = GpuManager.from(array2)
-      val matrixA2D = fromMat1.reshape(mat1.size, 1)
-      val matrixB2D = fromMat2.reshape(1, mat2.size)
+    val result =  matrixA2D.matMul(matrixB2D).toFloatArray
+    fromMat1.close()
+    fromMat2.close()
+    array1.close()
+    array2.close()
+    manager.close()
 
-      val result =  matrixA2D.matMul(matrixB2D).toFloatArray
-      fromMat1.close()
-      fromMat2.close()
-      array1.close()
-      array2.close()
-      GpuManager.close()
-      result
-    }
-    else {
-      val GpuManager: NDManager = NDManager.newBaseManager(Device.cpu())
-      val array1 = GpuManager.create(mat1)
-      val array2 = GpuManager.create(mat2)
-      val fromMat1: NDArray = GpuManager.from(array1)
-      val fromMat2: NDArray = GpuManager.from(array2)
-      val matrixA2D = fromMat1.reshape(mat1.size, 1)
-      val matrixB2D = fromMat2.reshape(1, mat2.size)
-
-      val result =  matrixA2D.matMul(matrixB2D).toFloatArray
-      fromMat1.close()
-      fromMat2.close()
-      array1.close()
-      array2.close()
-      GpuManager.close()
-
-      result
-    }
-
+    result
   }
 
   def matMulScalar(scalar: Float, input: Array[Float]): Array[Float] = {
-    if (Network.GpuMode) {
-      val manager: NDManager = NDManager.newBaseManager(Device.gpu(0))
-      val array1 = manager.create(input)
-      val c2 = array1.mul(scalar)
-      array1.close()
-      val tmp = c2.toFloatArray
-      c2.close()
-      manager.close()
-      tmp
-    }
-    else {
-      val manager: NDManager = NDManager.newBaseManager(Device.cpu())
-      val array1 = manager.create(input)
-      val c2 = array1.mul(scalar)
-      array1.close()
-      val tmp = c2.toFloatArray
-      c2.close()
-      manager.close()
-      tmp
-    }
+    val manager: NDManager = if(Network.GpuMode) NDManager.newBaseManager(Device.gpu(0)) else NDManager.newBaseManager(Device.cpu())
+    val array1 = manager.create(input)
+    val c2 = array1.mul(scalar)
+    array1.close()
+    val tmp = c2.toFloatArray
+    c2.close()
+    manager.close()
+    tmp
   }
 
   def applyGradients(mat1: Array[Float], mat2: Array[Float], outputSize:Int, scalar1: Float, scalar2:Float, mat3:Array[Float]): Array[Float] = {
