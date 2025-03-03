@@ -28,7 +28,7 @@ object Network {
   val OutputActivationType = "SoftMax"
 
   val CostFunction = "CategoricalCrossEntropy"
-  var LearningRate:Float =  0.0195f
+  var LearningRate:Float =  0.495f
   val weightedPenalty = 0.05f
   var InitialLearningRate:Float = LearningRate
   var Regularisation:Float = 5f

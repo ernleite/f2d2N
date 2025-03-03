@@ -87,15 +87,9 @@ class DenseActivationLayer extends ActivationLayer {
     }
 
     if (shards == shardReceived(correlationId) && inProgress(correlationId)) {
-      var z = CostManager.sum2(weighted(correlationId) , bias)
-
-      if (Network.LayerNorm) {
-        z = layerNorm(z)
-      }
-
+      val z = if (Network.LayerNorm) layerNorm(CostManager.sum2(weighted(correlationId), bias)) else CostManager.sum2(weighted(correlationId), bias)
       Z += (correlationId -> z)
       activation(correlationId)  = CostManager.ComputeZ(Network.getActivationLayersType(layer), z)
-
 
       if (Network.dropout > 0) {
         activation(correlationId) = Network.dropout(activation(correlationId))
@@ -116,7 +110,6 @@ class DenseActivationLayer extends ActivationLayer {
         activation(correlationId) = CostManager.EliminateNaN(activation(correlationId))
       }
 
-      if (Network.LayerNorm) activation(correlationId) = CostManager.layerNorm(activation(correlationId))
       inProgress(correlationId) = false
       shardReceived(correlationId) = 0
 
@@ -387,7 +380,6 @@ class DenseActivationLayer extends ActivationLayer {
     if (shards == shardReceived(correlationId) && inProgress(correlationId)) {
       val z = if (Network.LayerNorm) layerNorm(CostManager.sum2(weighted(correlationId), bias)) else CostManager.sum2(weighted(correlationId), bias)
       activation(correlationId) = ActivationManager.ComputeZ(Network.getActivationLayersType(layer), z)
-      if (Network.LayerNorm) activation(correlationId) = CostManager.layerNorm(activation(correlationId))
 
       if (Network.NaN) {
         activation(correlationId) = CostManager.EliminateNaN(activation(correlationId))
