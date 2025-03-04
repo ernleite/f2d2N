@@ -92,7 +92,6 @@ class DenseActivationLayer extends ActivationLayer {
       Z += (correlationId -> z)
       if (Network.LayerNorm)
         z = layerNorm(z)
-
       activation(correlationId)  = CostManager.ComputeZ(Network.getActivationLayersType(layer), z)
 
       if (Network.dropout > 0) {
