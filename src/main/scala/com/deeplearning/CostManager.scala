@@ -109,13 +109,29 @@ object CostManager {
     // Normalize
     val xNorm = x.sub(mean).div(variance.add(epsilon).sqrt())
 
-    // In a full implementation, you would apply gamma and beta here
-    // For simplicity, we're omitting these learnable parameters
-    // xNorm = xNorm.mul(gamma).add(beta)
+    // Initialize gamma and beta
+    val gamma = manager.ones(shape)
+    val beta = manager.zeros(shape)
 
-    val c = xNorm.toFloatArray
+    // Apply scaling and shifting
+    val output = xNorm.mul(gamma).add(beta)
+
+    val c = output.toFloatArray
     manager.close()
     c
+
+    /*
+    val vector : NDArray = manager.create(input)
+    val norm = vector.pow(2).sum().sqrt()
+    // Check if the norm is zero
+    val epsilon = 1e-12 // Small value to avoid division by zero
+    val safeNorm = norm.add(epsilon)
+    // Normalize the vector
+    val c = vector.div(safeNorm).toFloatArray
+    manager.close()
+    c
+
+     */
   }
 
 
@@ -403,28 +419,16 @@ object CostManager {
   }
 
   def layerNormalization(input: Array[Float], epsilon: Float = 1e-5f): Array[Float] = {
-    // Create an NDManager to manage memory
-    val manager = NDManager.newBaseManager()
-
-    try {
-      // Convert input Array[Float] to NDArray
-      val inputNDArray = manager.create(input)
-
-      // Calculate mean
-      val mean = inputNDArray.mean()
-
-      // Calculate variance
-      val variance = inputNDArray.sub(mean).pow(2).mean()
-
-      // Normalize the input
-      val normalized = inputNDArray.sub(mean).div(variance.add(epsilon).sqrt())
-
-      // Convert the result back to Array[Float]
-      normalized.toFloatArray
-    } finally {
-      // Close the NDManager to release resources
-      manager.close()
-    }
+    val manager: NDManager = if(Network.GpuMode) NDManager.newBaseManager(Device.gpu(0)) else NDManager.newBaseManager(Device.cpu())
+    val vector : NDArray = manager.create(input)
+    val norm = vector.pow(2).sum().sqrt()
+    // Check if the norm is zero
+    val epsilon = 1e-12 // Small value to avoid division by zero
+    val safeNorm = norm.add(epsilon)
+    // Normalize the vector
+    val c = vector.div(safeNorm).toFloatArray
+    manager.close()
+    c
   }
 
   def applyGradientsLight(mat1: Array[Float], mat2: Array[Float], outputSize:Int, scalar1: Float, scalar2:Float): Array[Float] = {

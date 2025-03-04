@@ -20,16 +20,7 @@ class Activation(context: ActorContext[ComputeActivation.ActivationCommand]) ext
         if (this.layer == null) {
           this.layer = LayerFactory.getActivationLayer(layer)
         }
-        val act = this.layer.ComputeZ(epoch,correlationId, yLabel, trainingCount, shardedWeighted, internalSubLayer, fromInternalSubLayer, layer, shards, params)
-        /*
-        if (act !=null && trainingCount % Network.minibatchBuffer == 0) {
-          for (j <- act) {
-            context.log.info("Activation Layer: " + layer + " : " + j)
-          }
-          context.log.info("--------------------------------------------------------------------")
-        }
-
-         */
+        this.layer.ComputeZ(epoch,correlationId, yLabel, trainingCount, shardedWeighted, internalSubLayer, fromInternalSubLayer, layer, shards, params)
       }
       this
 

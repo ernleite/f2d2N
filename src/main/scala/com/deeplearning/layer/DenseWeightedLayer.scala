@@ -495,7 +495,6 @@ class DenseWeightedLayer extends WeightedLayer {
       }
     }
     else {
-      val a = activation(correlationId)
       w1 = CostManager.initInputs(weights, activation(correlationId), split)
     }
 

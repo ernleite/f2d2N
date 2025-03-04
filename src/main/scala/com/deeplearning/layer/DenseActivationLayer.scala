@@ -87,8 +87,12 @@ class DenseActivationLayer extends ActivationLayer {
     }
 
     if (shards == shardReceived(correlationId) && inProgress(correlationId)) {
-      val z = if (Network.LayerNorm) layerNorm(CostManager.sum2(weighted(correlationId), bias)) else CostManager.sum2(weighted(correlationId), bias)
+      //val z = if (Network.LayerNorm) layerNorm(CostManager.sum2(weighted(correlationId), bias)) else CostManager.sum2(weighted(correlationId), bias)
+      var z = CostManager.sum2(weighted(correlationId), bias)
       Z += (correlationId -> z)
+      if (Network.LayerNorm)
+        z = layerNorm(z)
+
       activation(correlationId)  = CostManager.ComputeZ(Network.getActivationLayersType(layer), z)
 
       if (Network.dropout > 0) {
@@ -97,7 +101,8 @@ class DenseActivationLayer extends ActivationLayer {
 
       if (Network.CheckNaN) {
         val nanIndices = activation(correlationId).zipWithIndex.filter { case (value, _) => value.isNaN || value == 0f }
-        // Check if there are any NaN values
+        // Check if there are any NaN valueslapinchat
+
         if (nanIndices.nonEmpty) {
           println("NaN values found at indices:")
           nanIndices.foreach { case (_, index) => println(index) }
@@ -378,8 +383,11 @@ class DenseActivationLayer extends ActivationLayer {
 
     //all received. Lets compute the activation function
     if (shards == shardReceived(correlationId) && inProgress(correlationId)) {
-      val z = if (Network.LayerNorm) layerNorm(CostManager.sum2(weighted(correlationId), bias)) else CostManager.sum2(weighted(correlationId), bias)
+     // val z = if (Network.LayerNorm) layerNorm(CostManager.sum2(weighted(correlationId), bias)) else CostManager.sum2(weighted(correlationId), bias)
+
+      val z = CostManager.sum2(weighted(correlationId), bias)
       activation(correlationId) = ActivationManager.ComputeZ(Network.getActivationLayersType(layer), z)
+      if (Network.LayerNorm) layerNorm(activation(correlationId)) else activation(correlationId)
 
       if (Network.NaN) {
         activation(correlationId) = CostManager.EliminateNaN(activation(correlationId))
