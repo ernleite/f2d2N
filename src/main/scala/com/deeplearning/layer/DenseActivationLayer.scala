@@ -384,9 +384,10 @@ class DenseActivationLayer extends ActivationLayer {
     if (shards == shardReceived(correlationId) && inProgress(correlationId)) {
      // val z = if (Network.LayerNorm) layerNorm(CostManager.sum2(weighted(correlationId), bias)) else CostManager.sum2(weighted(correlationId), bias)
 
-      val z = CostManager.sum2(weighted(correlationId), bias)
+      val z = if (Network.LayerNorm)
+                  layerNorm(CostManager.sum2(weighted(correlationId), bias))
+              else CostManager.sum2(weighted(correlationId), bias)
       activation(correlationId) = ActivationManager.ComputeZ(Network.getActivationLayersType(layer), z)
-      if (Network.LayerNorm) layerNorm(activation(correlationId)) else activation(correlationId)
 
       if (Network.NaN) {
         activation(correlationId) = CostManager.EliminateNaN(activation(correlationId))
