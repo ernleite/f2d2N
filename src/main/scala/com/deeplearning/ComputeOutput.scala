@@ -114,9 +114,10 @@ class Output(context: ActorContext[ComputeOutput.OutputCommand]) extends Abstrac
 
         if (shards == shardReceived(correlationId) && inProgress(correlationId)) {
           counterTraining +=1
-          val z = if (Network.LayerNorm) layerNorm(CostManager.sum2(weighted(correlationId), bias)) else CostManager.sum2(weighted(correlationId), bias)
-          //val z = CostManager.sum2(weighted(correlationId), bias)
-
+         // var z = if (Network.LayerNorm) layerNorm(CostManager.sum2(weighted(correlationId), bias)) else CostManager.sum2(weighted(correlationId), bias)
+          var z = CostManager.sum2(weighted(correlationId), bias)
+          if (Network.LayerNorm)
+            z = layerNorm(CostManager.sum2(weighted(correlationId), bias))
           activation(correlationId) = ActivationManager.ComputeZ(Network.OutputActivationType, z)
 
           val v = activation(correlationId)
