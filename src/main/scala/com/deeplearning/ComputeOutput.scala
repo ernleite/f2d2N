@@ -114,9 +114,14 @@ class Output(context: ActorContext[ComputeOutput.OutputCommand]) extends Abstrac
 
         if (shards == shardReceived(correlationId) && inProgress(correlationId)) {
           counterTraining +=1
-          val z = if (Network.LayerNorm) layerNorm(CostManager.sum2(weighted(correlationId), bias)) else CostManager.sum2(weighted(correlationId), bias)
+          //if (Network.LayerNorm)
+          //  weighted(correlationId) = layerNorm( weighted(correlationId))
+
+          val z = CostManager.sum2(weighted(correlationId), bias)
 
           activation(correlationId) = ActivationManager.ComputeZ(Network.OutputActivationType, z)
+     //     if (Network.LayerNorm)
+     //       activation(correlationId) = layerNorm( activation(correlationId))
 
           val v = activation(correlationId)
 
@@ -268,8 +273,9 @@ class Output(context: ActorContext[ComputeOutput.OutputCommand]) extends Abstrac
 
         //all received. Lets compute the activation function
         if (shards == shardReceived(correlationId) && inProgress(correlationId)) {
-          val z = if (Network.LayerNorm) layerNorm(CostManager.sum2(weighted(correlationId), bias)) else CostManager.sum2(weighted(correlationId), bias)
-
+          val z =
+          if (Network.LayerNorm)
+            layerNorm(CostManager.sum2(weighted(correlationId), bias)) else CostManager.sum2(weighted(correlationId), bias)
           //val mav = Normalisation.getMeanAndVariance(z)
           //activation(correlationId) = Normalisation.batchNormalize(activation(correlationId), mav._1, mav._3, 0.1f, 0.1f)
           activation(correlationId) = ActivationManager.ComputeZ(Network.OutputActivationType, z)

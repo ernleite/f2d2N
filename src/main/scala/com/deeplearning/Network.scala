@@ -10,16 +10,16 @@ import scala.util.Random
 object Network {
 
   val clusterNodesDim = 1 // Cluster dimension
-  val trainingSample = "Cifar10" // Sample Mnist or Cifar10
+  val trainingSample = "Mnist" // Sample Mnist or Cifar10
   val channels = if (Network.trainingSample == "Cifar10") 3 else 1 //1 Mnist or 3 Cifar
   val InputLayerType = "Dense"
   val InputActivationType = "Relu"
   val InputLayer = if (Network.trainingSample == "Cifar10") 3072 else 784 // 784 Mnist or 3072 Cifar
-  val InputLayerDim = 6 // Vertical split
-  val HiddenLayers = Array[Int](500,250) // Neurons size : horizontal parallelism
-  val HiddenLayersDim = Array[Int](10,2) // Vertical parallelism : Disabled if 1
+  val InputLayerDim = 4 // Vertical split
+  val HiddenLayers = Array[Int](50,50) // Neurons size : horizontal parallelism
+  val HiddenLayersDim = Array[Int](5,5) // Vertical parallelism : Disabled if 1
   val HiddenLayerType = Array[String]( "Dense","Dense","Dense","Dense") // Dense or Conv2D
-  val HiddenActivationType = Array[String]( "Relu", "Relu", "Sigmoid", "Sigmoid") // Sigmoid, Relu, TanH, LeakyRelu
+  val HiddenActivationType = Array[String]( "Relu", "Relu", "Relu", "Relu") // Sigmoid, Relu, TanH, LeakyRelu
   val Filters = Array[String]("filters:5;kernel:3,3;stride:1;padding:same","filters:10;kernel:3,3;stride:1;padding:same")
   val ForwardBatchNormalization=false
   val BackBatchNormalization=false
@@ -33,10 +33,10 @@ object Network {
   var InitialLearningRate:Float = LearningRate
   var Regularisation:Float = 5f
   val limitedDataset = false
-  val LayerNorm = true
+  val LayerNorm = false
   val SGB = false
-  val Epochs = if (Network.limitedDataset) 1 else 20
-  var MiniBatch:Int = if (Network.limitedDataset) 1 else 50
+  val Epochs = if (Network.limitedDataset) 1 else 40
+  var MiniBatch:Int = if (Network.limitedDataset) 1 else 500
   val MiniBatchRange:Int = if (Network.limitedDataset) 2 else if (Network.trainingSample == "Cifar10") 45000 else 60000 // Mnist 60000 or Cifar 45000
   val minibatchBuffer = if (Network.limitedDataset) 1 else if (Network.trainingSample == "Cifar10") 45000 else 60000 // <= MiniBatchRange
   var rangeInitAuto:Boolean = true
@@ -47,7 +47,7 @@ object Network {
   var LeakyReluAlpha:Float = 0.01f
   var NaN:Boolean = false
   var CheckNaN:Boolean = false
-  var dropout:Float = 0.5f//-1 Dropout desactivated
+  var dropout:Float = -1f//-1 Dropout desactivated
   val drop = 0.325f
   val epochs_drop = 15
   val debug:Boolean = false

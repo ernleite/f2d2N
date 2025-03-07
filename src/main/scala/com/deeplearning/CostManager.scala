@@ -174,8 +174,7 @@ object CostManager {
           val mat = manager.ones(zArray.getShape).sub(sigmoidZ)
           c = sigmoidZ.mul(mat).toFloatArray
         case "Relu" =>
-          val ones = manager.ones(zArray.getShape)
-          c = zArray.gt(0).toType(DataType.FLOAT32, false).mul(ones).toFloatArray
+          c = zArray.gt(0).toType(DataType.FLOAT32, false).toFloatArray
         case "LeakyRelu" =>
           val positiveGradient = zArray.gte(0).toType(DataType.FLOAT32, false)
           val negativeGradient = zArray.lt(0).toType(DataType.FLOAT32, false).mul(Network.LeakyReluAlpha)
@@ -658,6 +657,30 @@ object CostManager {
     array.map(_ * scale + b)
   }
 
+
+  def sigmoid(mat:Array[Float]) : Array[Float] = {
+    val manager: NDManager = if(Network.GpuMode) NDManager.newBaseManager(Device.gpu(0)) else NDManager.newBaseManager(Device.cpu())
+    val array1 = manager.create(mat)
+    val fromMat1: NDArray = manager.from(array1)
+
+    val c = Activation.sigmoid(fromMat1).toFloatArray
+    fromMat1.close()
+    array1.close()
+    manager.close()
+    c
+  }
+
+  def relu(mat:Array[Float]) : Array[Float] = {
+    val manager: NDManager = if(Network.GpuMode) NDManager.newBaseManager(Device.gpu(0)) else NDManager.newBaseManager(Device.cpu())
+    val array1 = manager.create(mat)
+    val fromMat1: NDArray = manager.from(array1)
+
+    val c = Activation.relu(fromMat1).toFloatArray
+    fromMat1.close()
+    array1.close()
+    manager.close()
+    c
+  }
 
   def softMax(mat:Array[Float]) : Array[Float] = {
     val manager: NDManager = if(Network.GpuMode) NDManager.newBaseManager(Device.gpu(0)) else NDManager.newBaseManager(Device.cpu())
