@@ -114,17 +114,8 @@ class Output(context: ActorContext[ComputeOutput.OutputCommand]) extends Abstrac
 
         if (shards == shardReceived(correlationId) && inProgress(correlationId)) {
           counterTraining +=1
-          //if (Network.LayerNorm)
-          //  weighted(correlationId) = layerNorm( weighted(correlationId))
-
           val z = CostManager.sum2(weighted(correlationId), bias)
-
           activation(correlationId) = ActivationManager.ComputeZ(Network.OutputActivationType, z)
-     //     if (Network.LayerNorm)
-     //       activation(correlationId) = layerNorm( activation(correlationId))
-
-          val v = activation(correlationId)
-
           if (Network.NaN)
             activation(correlationId) = CostManager.EliminateNaN(activation(correlationId))
 
@@ -253,7 +244,6 @@ class Output(context: ActorContext[ComputeOutput.OutputCommand]) extends Abstrac
 
         if (shardReceived(correlationId) <= shards) {
           val biasLength = bias.length
-          val multiplier = if (biasLength%shards==0)biasLength/shards else biasLength/shards+1
 
           if (fromInternalSubLayer == 0) {
             val act = shardedWeighted.padTo(biasLength, 0.0f)

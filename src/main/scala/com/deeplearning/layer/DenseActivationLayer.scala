@@ -1,7 +1,7 @@
 package com.deeplearning.layer
 
 import breeze.linalg.{DenseVector, normalize}
-import com.deeplearning.CostManager.{dotProduct, layerNorm}
+import com.deeplearning.CostManager.{dotProduct, getIndex, layerNorm}
 import com.deeplearning.{ActivationManager, ComputeActivation, ComputeInputs, ComputeWeighted, CostManager, LayerManager, Network, Normalisation}
 import com.deeplearning.Network.{LearningRate, generateRandomBiasFloat, generateRandomFloat}
 
@@ -162,7 +162,6 @@ class DenseActivationLayer extends ActivationLayer {
       fromArraySize = Network.getHiddenLayersDim(layer, "hidden")
     }
     val multiplier = if (biasLength%shards==0)biasLength/shards else biasLength/shards+1
-
     val deltatmp = Array.fill[Float](biasLength)(0.0f)
 
 
@@ -171,6 +170,7 @@ class DenseActivationLayer extends ActivationLayer {
         deltaSync(correlationId) = CostManager.sum2(deltaSync(correlationId), delta)
       }
       else {
+        /*
         if (fromInternalSubLayer == 0) {
           val act = delta.padTo(biasLength, 0.0f)
           deltaSync(correlationId) = CostManager.sum2(deltaSync(correlationId), act)
@@ -192,6 +192,25 @@ class DenseActivationLayer extends ActivationLayer {
           val act2 =  Array.fill(biasLength-delta.length)(0.0f) ++ delta
           deltaSync(correlationId) = CostManager.sum2(deltaSync(correlationId), act2)
         }
+        */
+
+        val biasLength = bias.length
+        if (fromInternalSubLayer == 0) {
+          val act = delta.padTo(biasLength, 0.0f)
+          deltaSync(correlationId) = CostManager.sum2(deltaSync(correlationId), act)
+        }
+        else if ((fromInternalSubLayer+1) < shards) {
+          val index = getIndex(shards, biasLength, fromInternalSubLayer)
+          val test = Array.fill(biasLength)(0.0f)
+          Array.copy(delta, 0, test, index, delta.length)
+          deltaSync(correlationId) = CostManager.sum2(deltaSync(correlationId), test)
+        }
+        else if ( (fromInternalSubLayer+1) == shards) {
+          val act2 =  Array.fill(biasLength-delta.length)(0.0f) ++ delta
+          deltaSync(correlationId) = CostManager.sum2(deltaSync(correlationId), act2)
+        }
+
+
       }
     }
 
