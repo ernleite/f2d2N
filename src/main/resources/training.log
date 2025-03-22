@@ -1,0 +1,70 @@
+2025-03-21 11:04:13,018 | custom_logging | INFO: Starting RVC pipeline...
+2025-03-21 11:04:13,019 | custom_logging | INFO: 1. Running preprocessing...
+2025-03-21 11:04:13,019 | custom_logging | INFO: ===PREPROCESS==
+2025-03-21 11:04:13,019 | custom_logging | INFO: model_name /workspace/rvc-cli/datasets
+2025-03-21 11:04:13,019 | custom_logging | INFO: dataset_path /workspace/rvc-cli/datasets
+2025-03-21 11:04:13,019 | custom_logging | INFO: sample_rate 48000
+2025-03-21 11:04:13,019 | custom_logging | INFO: cpu_cores 8
+2025-03-21 11:04:13,020 | custom_logging | INFO: cut_preprocess True
+2025-03-21 11:04:13,020 | custom_logging | INFO: process_effects True
+2025-03-21 11:04:13,020 | custom_logging | INFO: noise_reduction False
+2025-03-21 11:04:13,020 | custom_logging | INFO: noise_reduction_strength 0.7
+2025-03-21 11:04:13,020 | custom_logging | INFO: ===============
+2025-03-21 11:04:29,299 | custom_logging | INFO: 2. Running feature extraction...
+2025-03-21 11:04:29,300 | custom_logging | INFO: ===EXTRACT FEATURES===
+2025-03-21 11:04:29,300 | custom_logging | INFO: model_name /workspace/rvc-cli/datasets
+2025-03-21 11:04:29,300 | custom_logging | INFO: rvc_version v2
+2025-03-21 11:04:29,300 | custom_logging | INFO: f0_method rmvpe
+2025-03-21 11:04:29,300 | custom_logging | INFO: pitch_guidance True
+2025-03-21 11:04:29,300 | custom_logging | INFO: hop_length 160
+2025-03-21 11:04:29,300 | custom_logging | INFO: cpu_cores 8
+2025-03-21 11:04:29,301 | custom_logging | INFO: gpu 0
+2025-03-21 11:04:29,301 | custom_logging | INFO: sample_rate 48000
+2025-03-21 11:04:29,301 | custom_logging | INFO: embedder_model contentvec
+2025-03-21 11:04:29,301 | custom_logging | INFO: =====================
+2025-03-21 11:04:53,042 | custom_logging | INFO: 3. Running training...
+2025-03-21 11:04:53,042 | custom_logging | INFO: ===TRAIN===
+2025-03-21 11:04:53,042 | custom_logging | INFO: model_name /workspace/rvc-cli/datasets
+2025-03-21 11:04:53,042 | custom_logging | INFO: rvc_version v2
+2025-03-21 11:04:53,042 | custom_logging | INFO: sample_rate 48000
+2025-03-21 11:04:53,042 | custom_logging | INFO: save_every_epoch 10
+2025-03-21 11:04:53,042 | custom_logging | INFO: save_only_latest False
+2025-03-21 11:04:53,042 | custom_logging | INFO: save_every_weights True
+2025-03-21 11:04:53,042 | custom_logging | INFO: total_epoch 100
+2025-03-21 11:04:53,042 | custom_logging | INFO: batch_size 8
+2025-03-21 11:04:53,042 | custom_logging | INFO: gpu 0
+2025-03-21 11:04:53,042 | custom_logging | INFO: pitch_guidance True
+2025-03-21 11:04:53,043 | custom_logging | INFO: pretrained True
+2025-03-21 11:04:53,043 | custom_logging | INFO: custom_pretrained True
+2025-03-21 11:04:53,043 | custom_logging | INFO: g_pretrained_path /workspace/rvc-cli/pretrained/G.pth
+2025-03-21 11:04:53,043 | custom_logging | INFO: d_pretrained_path /workspace/rvc-cli/pretrained/D.pth
+2025-03-21 11:04:53,043 | custom_logging | INFO: overtraining_detector False
+2025-03-21 11:04:53,043 | custom_logging | INFO: overtraining_threshold 50
+2025-03-21 11:04:53,043 | custom_logging | INFO: cache_data_in_gpu False
+2025-03-21 11:04:53,043 | custom_logging | INFO: index_algorithm Auto
+2025-03-21 11:04:53,044 | custom_logging | INFO: ===========
+2025-03-21 11:05:13,378 | custom_logging | INFO: Pipeline completed successfully!
+2025-03-21 11:11:21,635 | custom_logging | INFO: Starting RVC pipeline...
+2025-03-21 11:11:21,635 | custom_logging | INFO: 1. Running preprocessing...
+2025-03-21 11:11:21,636 | custom_logging | INFO: ===PREPROCESS==
+2025-03-21 11:11:21,636 | custom_logging | INFO: model_name /workspace/rvc-cli/datasets/
+2025-03-21 11:11:21,636 | custom_logging | INFO: dataset_path /workspace/rvc-cli/datasets/
+2025-03-21 11:11:21,636 | custom_logging | INFO: sample_rate 48000
+2025-03-21 11:11:21,636 | custom_logging | INFO: cpu_cores 8
+2025-03-21 11:11:21,636 | custom_logging | INFO: cut_preprocess True
+2025-03-21 11:11:21,636 | custom_logging | INFO: process_effects True
+2025-03-21 11:11:21,636 | custom_logging | INFO: noise_reduction False
+2025-03-21 11:11:21,637 | custom_logging | INFO: noise_reduction_strength 0.7
+2025-03-21 11:11:21,637 | custom_logging | INFO: ===============
+2025-03-21 11:11:37,938 | custom_logging | INFO: 2. Running feature extraction...
+2025-03-21 11:11:37,939 | custom_logging | INFO: ===EXTRACT FEATURES===
+2025-03-21 11:11:37,939 | custom_logging | INFO: model_name /workspace/rvc-cli/datasets/
+2025-03-21 11:11:37,939 | custom_logging | INFO: rvc_version v2
+2025-03-21 11:11:37,939 | custom_logging | INFO: f0_method rmvpe
+2025-03-21 11:11:37,939 | custom_logging | INFO: pitch_guidance True
+2025-03-21 11:11:37,939 | custom_logging | INFO: hop_length 160
+2025-03-21 11:11:37,939 | custom_logging | INFO: cpu_cores 8
+2025-03-21 11:11:37,939 | custom_logging | INFO: gpu 0
+2025-03-21 11:11:37,939 | custom_logging | INFO: sample_rate 48000
+2025-03-21 11:11:37,939 | custom_logging | INFO: embedder_model contentvec
+2025-03-21 11:11:37,939 | custom_logging | INFO: =====================
