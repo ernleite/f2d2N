@@ -65,6 +65,7 @@ class DenseActivationLayer extends ActivationLayer {
       weighted += (correlationId -> Array.fill[Float](activationLength)(0.0f))
     }
 
+    /*
     if (shardReceived(correlationId) < shards) {
       if (shardedWeighted.size == activationLength) {
         if (!weighted.contains(correlationId))
@@ -85,6 +86,53 @@ class DenseActivationLayer extends ActivationLayer {
       }
       shardReceived(correlationId) += 1
     }
+     */
+
+    if (layer == 1) {
+      if (shardReceived(correlationId) < shards) {
+        if (shardedWeighted.size == activationLength) {
+          if (!weighted.contains(correlationId))
+            weighted += (correlationId -> shardedWeighted)
+          else
+            weighted(correlationId) = CostManager.sum2(weighted(correlationId), shardedWeighted)
+        }
+        else {
+          val weightedLength = shardedWeighted.length
+          if (fromInternalSubLayer == 0) {
+            val act = shardedWeighted.padTo(activationLength, 0.0f)
+            weighted(correlationId) = CostManager.sum2(weighted(correlationId), act)
+          }
+          else  {
+            val act =  Array.fill(weightedLength*fromInternalSubLayer)(0.0f) ++ shardedWeighted.padTo(activationLength-(fromInternalSubLayer*weightedLength), 0.0f)
+            weighted(correlationId) = CostManager.sum2(weighted(correlationId), act)
+          }
+        }
+        shardReceived(correlationId) += 1
+      }
+    }
+    else {
+      shardReceived(correlationId) += 1
+
+      if (shardReceived(correlationId) <= shards) {
+        val biasLength = bias.length
+        if (fromInternalSubLayer == 0) {
+          val act = shardedWeighted.padTo(biasLength, 0.0f)
+          weighted(correlationId) = CostManager.sum2(weighted(correlationId), act)
+        }
+        else if ((fromInternalSubLayer+1) < shards) {
+          val index = getIndex(shards, biasLength, fromInternalSubLayer)
+          val test = Array.fill(biasLength)(0.0f)
+          Array.copy(shardedWeighted, 0, test, index, shardedWeighted.length)
+          weighted(correlationId) = CostManager.sum2(weighted(correlationId), test)
+        }
+        else if ( (fromInternalSubLayer+1) == shards) {
+          val act2 =  Array.fill(biasLength-shardedWeighted.length)(0.0f) ++ shardedWeighted
+          weighted(correlationId) = CostManager.sum2(weighted(correlationId), act2)
+        }
+      }
+
+    }
+
 
     if (shards == shardReceived(correlationId) && inProgress(correlationId)) {
       //val z = if (Network.LayerNorm) layerNorm(CostManager.sum2(weighted(correlationId), bias)) else CostManager.sum2(weighted(correlationId), bias)
@@ -109,18 +157,10 @@ class DenseActivationLayer extends ActivationLayer {
           println("No NaN values found in the array.")
         }
       }
-
-      if (Network.NaN) {
-        activation(correlationId) = CostManager.EliminateNaN(activation(correlationId))
-      }
-
       inProgress(correlationId) = false
       shardReceived(correlationId) = 0
 
       val toUCs = Network.getHiddenLayersDim(layer+1, "weighted")
-      if (layer == 1) {
-        val test = 1
-      }
 
       for (i <- 0 until toUCs) {
         val actorweightedLayer = Network.LayersIntermediateRef("weightedLayer_" + (layer+1) + "_" + i)

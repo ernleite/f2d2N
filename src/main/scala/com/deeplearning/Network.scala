@@ -10,14 +10,14 @@ import scala.util.Random
 object Network {
 
   val clusterNodesDim = 1 // Cluster dimension
-  val trainingSample = "Cifar10" // Sample Mnist or Cifar10
+  val trainingSample = "Mnist" // Sample Mnist or Cifar10
   val channels = if (Network.trainingSample == "Cifar10") 3 else 1 //1 Mnist or 3 Cifar
   val InputLayerType = "Dense"
   val InputActivationType = "Relu"
   val InputLayer = if (Network.trainingSample == "Cifar10") 3072 else 784 // 784 Mnist or 3072 Cifar
   val InputLayerDim = 4 // Vertical split
-  val HiddenLayers = Array[Int](250,250) // Neurons size : horizontal parallelism
-  val HiddenLayersDim = Array[Int](1,1) // Vertical parallelism : Disabled if 1
+  val HiddenLayers = Array[Int](50,30) // Neurons size : horizontal parallelism
+  val HiddenLayersDim = Array[Int](2,2) // Vertical parallelism : Disabled if 1
   val HiddenLayerType = Array[String]( "Dense","Dense","Dense","Dense") // Dense or Conv2D
   val HiddenActivationType = Array[String]( "Relu", "Relu", "Relu", "Relu") // Sigmoid, Relu, TanH, LeakyRelu
   val Filters = Array[String]("filters:5;kernel:3,3;stride:1;padding:same","filters:10;kernel:3,3;stride:1;padding:same")
@@ -28,20 +28,20 @@ object Network {
   val OutputActivationType = "SoftMax"
 
   val CostFunction = "CategoricalCrossEntropy"
-  var LearningRate:Float =  0.0001f
+  var LearningRate:Float =  0.0295f
   val weightedPenalty = 0.05f
   var InitialLearningRate:Float = LearningRate
-  var Regularisation:Float = 1f
+  var Regularisation:Float = 5f
   val limitedDataset = false
   val LayerNorm = false
   val SGB = false
   val testMode = false
-  val Epochs = if (Network.limitedDataset) 1 else 20
+  val Epochs = if (Network.limitedDataset) 1 else 30
   var MiniBatch:Int = if (Network.limitedDataset) 1 else 50
   val MiniBatchRange:Int = if (Network.limitedDataset) 2 else if (Network.trainingSample == "Cifar10") 45000 else 60000 // Mnist 60000 or Cifar 45000
   val minibatchBuffer = if (Network.limitedDataset) 1 else if (Network.trainingSample == "Cifar10") 45000 else 60000 // <= MiniBatchRange
   var rangeInitAuto:Boolean = true
-  var rangeInitStart:Float = 0f
+  var rangeInitStart:Float = -1f
   var rangeInitEnd:Float = 1f
   var scaleInitStart: Float = -1f
   var scaleInitEnd: Float = 1f
