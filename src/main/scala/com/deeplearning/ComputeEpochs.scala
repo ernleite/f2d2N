@@ -66,7 +66,7 @@ class Epochs(context: ActorContext[ComputeEpochs.TrainCommand]) extends Abstract
         inputsTrainId = if (Network.limitedDataset) Array(1)++ Array(2) else Network.generateArray(0,dataSet.trainingSize-1).take(Network.MiniBatchRange)
 
         if (Network.LearningRateDecay) {
-          Network.LearningRate = Network.stepDecay(epochDoneCount,Network.InitialLearningRate,Network.drop,Network.epochs_drop)
+          Network.LearningRate = Network.stepDecay(epochDoneCount,Network.LearningRate,Network.drop,Network.epochs_drop)
           if (Network.debugDelay) {
             context.log.info("-----------------------------------------------------")
             context.log.info("stepDecay : New LearningRate = " + Network.LearningRate)
