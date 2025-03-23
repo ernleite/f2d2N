@@ -16,8 +16,8 @@ object Network {
   val InputActivationType = "Relu"
   val InputLayer = if (Network.trainingSample == "Cifar10") 3072 else 784 // 784 Mnist or 3072 Cifar
   val InputLayerDim = 4 // Vertical split
-  val HiddenLayers = Array[Int](50,30) // Neurons size : horizontal parallelism
-  val HiddenLayersDim = Array[Int](2,2) // Vertical parallelism : Disabled if 1
+  val HiddenLayers = Array[Int](50,50) // Neurons size : horizontal parallelism
+  val HiddenLayersDim = Array[Int](5,5) // Vertical parallelism : Disabled if 1
   val HiddenLayerType = Array[String]( "Dense","Dense","Dense","Dense") // Dense or Conv2D
   val HiddenActivationType = Array[String]( "Relu", "Relu", "Relu", "Relu") // Sigmoid, Relu, TanH, LeakyRelu
   val Filters = Array[String]("filters:5;kernel:3,3;stride:1;padding:same","filters:10;kernel:3,3;stride:1;padding:same")
@@ -49,7 +49,7 @@ object Network {
   var NaN:Boolean = false
   var CheckNaN:Boolean = false
   var dropout:Float = -1f//-1 Dropout desactivated
-  val drop = 0.725f
+  val drop:Float = 0.000025f
   val epochs_drop = 15
   val debug:Boolean = false
   val debugActivity:Boolean = false
@@ -59,7 +59,7 @@ object Network {
   val StatEvents = false
 
   val debugDelay = false
-  val LearningRateDecay = false //enable reducing learning rate when reaching a threshold
+  val LearningRateDecay = true //enable reducing learning rate when reaching a threshold
   val LearningRateDecayValue = false //enable reducing learning rate when reaching a threshold
   val autoWeigthNormalisation = true
   val autoActivationNormalisation = true
@@ -118,8 +118,8 @@ object Network {
 
 
   def stepDecay(epoch: Int, initial_lr: Float, drop: Float, epochs_drop: Int): Float = {
-    val lr = initial_lr * math.pow(drop, math.floor((1 + epoch) / epochs_drop))
-    lr.toFloat
+    val lr = initial_lr - drop
+    lr
   }
 
   def shuffleArray(arr: Array[Float]): Array[Float] = {
