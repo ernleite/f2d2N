@@ -16,8 +16,8 @@ object Network {
   val InputActivationType = "Relu"
   val InputLayer = if (Network.trainingSample == "Cifar10") 3072 else 784 // 784 Mnist or 3072 Cifar
   val InputLayerDim = 4 // Vertical split
-  val HiddenLayers = Array[Int](50,50) // Neurons size : horizontal parallelism
-  val HiddenLayersDim = Array[Int](5,5) // Vertical parallelism : Disabled if 1
+  val HiddenLayers = Array[Int](50,30) // Neurons size : horizontal parallelism
+  val HiddenLayersDim = Array[Int](1,1) // Vertical parallelism : Disabled if 1
   val HiddenLayerType = Array[String]( "Dense","Dense","Dense","Dense") // Dense or Conv2D
   val HiddenActivationType = Array[String]( "Relu", "Relu", "Relu", "Relu") // Sigmoid, Relu, TanH, LeakyRelu
   val Filters = Array[String]("filters:5;kernel:3,3;stride:1;padding:same","filters:10;kernel:3,3;stride:1;padding:same")
@@ -36,7 +36,7 @@ object Network {
   val LayerNorm = false
   val SGB = false
   val testMode = false
-  val Epochs = if (Network.limitedDataset) 1 else 30
+  val Epochs = if (Network.limitedDataset) 1 else 10
   var MiniBatch:Int = if (Network.limitedDataset) 1 else 50
   val MiniBatchRange:Int = if (Network.limitedDataset) 2 else if (Network.trainingSample == "Cifar10") 45000 else 60000 // Mnist 60000 or Cifar 45000
   val minibatchBuffer = if (Network.limitedDataset) 1 else if (Network.trainingSample == "Cifar10") 45000 else 60000 // <= MiniBatchRange

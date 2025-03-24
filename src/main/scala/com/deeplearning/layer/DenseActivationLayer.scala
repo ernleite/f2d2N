@@ -88,7 +88,7 @@ class DenseActivationLayer extends ActivationLayer {
     }
      */
 
-    if (layer == 1) {
+    if (layer >= 1) {
       if (shardReceived(correlationId) < shards) {
         if (shardedWeighted.size == activationLength) {
           if (!weighted.contains(correlationId))
