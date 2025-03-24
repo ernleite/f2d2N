@@ -111,7 +111,6 @@ class Output(context: ActorContext[ComputeOutput.OutputCommand]) extends Abstrac
             weighted(correlationId) = CostManager.sum2(weighted(correlationId), act2)
           }
         }
-
         if (shards == shardReceived(correlationId) && inProgress(correlationId)) {
           counterTraining +=1
           val z = CostManager.sum2(weighted(correlationId), bias)

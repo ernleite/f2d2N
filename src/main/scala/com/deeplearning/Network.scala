@@ -58,8 +58,8 @@ object Network {
   val GpuMode = false
   val StatEvents = false
 
-  val debugDelay = true
-  val LearningRateDecay = true //enable reducing learning rate when reaching a threshold
+  val debugDelay = false
+  val LearningRateDecay = false //enable reducing learning rate when reaching a threshold
   val LearningRateDecayValue = false //enable reducing learning rate when reaching a threshold
   val autoWeigthNormalisation = true
   val autoActivationNormalisation = true
