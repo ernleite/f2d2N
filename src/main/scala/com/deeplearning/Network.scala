@@ -36,7 +36,7 @@ object Network {
   val LayerNorm = false
   val SGB = false
   val testMode = false
-  val Epochs = if (Network.limitedDataset) 1 else 20
+  val Epochs = if (Network.limitedDataset) 1 else 35
   var MiniBatch:Int = if (Network.limitedDataset) 1 else 50
   val MiniBatchRange:Int = if (Network.limitedDataset) 2 else if (Network.trainingSample == "Cifar10") 45000 else 60000 // Mnist 60000 or Cifar 45000
   val minibatchBuffer = if (Network.limitedDataset) 1 else if (Network.trainingSample == "Cifar10") 45000 else 60000 // <= MiniBatchRange
