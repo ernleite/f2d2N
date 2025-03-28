@@ -97,13 +97,39 @@ class DenseActivationLayer extends ActivationLayer {
       }
       else {
         val weightedLength = shardedWeighted.length
-        if (fromInternalSubLayer == 0) {
-          val act = shardedWeighted.padTo(activationLength, 0.0f)
-          weighted(correlationId) = CostManager.sum2(weighted(correlationId), act)
+
+        if (layer==1) {
+          var test = Array.fill(1)(0.0f)
+          if (fromInternalSubLayer == 0) {
+            val act = shardedWeighted.padTo(activationLength, 0.0f)
+            test = act
+            weighted(correlationId) = CostManager.sum2(weighted(correlationId), act)
+          }
+          else  {
+            val act =  Array.fill(weightedLength*fromInternalSubLayer)(0.0f) ++ shardedWeighted.padTo(activationLength-(fromInternalSubLayer*weightedLength), 0.0f)
+            test = act
+            weighted(correlationId) = CostManager.sum2(weighted(correlationId), act)
+          }
         }
-        else  {
-          val act =  Array.fill(weightedLength*fromInternalSubLayer)(0.0f) ++ shardedWeighted.padTo(activationLength-(fromInternalSubLayer*weightedLength), 0.0f)
-          weighted(correlationId) = CostManager.sum2(weighted(correlationId), act)
+        else {
+          val biasLength = bias.length
+          if (fromInternalSubLayer == 0) {
+            val act = shardedWeighted.padTo(biasLength, 0.0f)
+
+            weighted(correlationId) = CostManager.sum2(weighted(correlationId), act)
+          }
+          else if ((fromInternalSubLayer+1) < shards) {
+            val index = getIndex(shards, biasLength, fromInternalSubLayer)
+            val act = Array.fill(biasLength)(0.0f)
+            Array.copy(shardedWeighted, 0, act, index, shardedWeighted.length)
+
+            weighted(correlationId) = CostManager.sum2(weighted(correlationId), act)
+          }
+          else if ( (fromInternalSubLayer+1) == shards) {
+            val act =  Array.fill(biasLength-shardedWeighted.length)(0.0f) ++ shardedWeighted
+            weighted(correlationId) = CostManager.sum2(weighted(correlationId), act)
+
+          }
         }
       }
       shardReceived(correlationId) += 1
@@ -242,7 +268,8 @@ class DenseActivationLayer extends ActivationLayer {
     }
 
     if (Network.MiniBatch == minibatch.values.sum) {
-      val flatten = nablas_b.values.toArray.flatten
+      var flatten = nablas_b.values.toArray.flatten
+     // flatten = LayerNorm.clipByNorm(flatten)
       val (tmp4) = CostManager.applyBias(activation(correlationId).size,learningRate / Network.MiniBatch, flatten, bias)
       bias = tmp4
 

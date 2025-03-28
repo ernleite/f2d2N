@@ -4,9 +4,9 @@ package com.deeplearning.layer
 import ai.djl.Device
 import ai.djl.ndarray.types.Shape
 import ai.djl.ndarray.{NDArray, NDManager}
-import com.deeplearning.CostManager.{getIndex, matMul2, roundUpIfFractional}
-import com.deeplearning.Network.generateRandomFloat
-import com.deeplearning.{ComputeActivation, ComputeOutput, ComputeWeighted, CostManager, LayerManager, Network}
+import com.deeplearning.CostManager.{getIndex, matMul2, normalization, roundUpIfFractional}
+import com.deeplearning.Network.{GradientsClipping, generateRandomFloat}
+import com.deeplearning.{ActivationManager, ComputeActivation, ComputeOutput, ComputeWeighted, CostManager, LayerManager, Network}
 
 import scala.math._
 import java.time.{Duration, Instant}
@@ -342,7 +342,10 @@ class DenseWeightedLayer extends WeightedLayer {
           else
             w2 = CostManager.sum2(w2,s)
 
+          if (GradientsClipping)
+            w2 = LayerNorm.clipByNorm(w2)
           this.weights = CostManager.applyGradientsLight(w2, weights,Network.MiniBatch,learningRate / Network.MiniBatch, 1 - learningRate * (regularisation / nInputs))
+          this.weights = CostManager.batchNormalize(this.weights)
         }
         else {
           val act2 = nablas_w_tmp2.values.flatten.toArray

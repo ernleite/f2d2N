@@ -91,6 +91,7 @@ class DenseInputLayer extends InputLayer {
 
       val act = this.X.values.flatten.toArray
       val del = deltas2.values.flatten.toArray
+
       weights= CostManager.applyGradients(del,act, Network.MiniBatch , learningRate / Network.MiniBatch,1 - learningRate * (regularisation / nInputs),this.weights)
 
       //weights = split.flatten

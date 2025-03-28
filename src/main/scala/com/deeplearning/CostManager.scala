@@ -6,7 +6,6 @@ import ai.djl.training.loss.Loss
 import breeze.numerics.{sigmoid, sqrt}
 import ai.djl.nn.Activation
 
-
 object CostManager {
   val scale = 1.0507f
   val alpha = 1.67326f
@@ -620,6 +619,20 @@ object CostManager {
     array1.close()
     manager.close()
     c
+  }
+
+  def clipGradients(gradients: Array[Float], min: Float=0.0f, max: Float): Array[Float] = {
+    val clipped = new Array[Float](gradients.length)
+    var i = 0
+    while (i < gradients.length) {
+      val value = gradients(i)
+      clipped(i) =
+        if (value < min) min
+        else if (value > max) max
+        else value
+      i += 1
+    }
+    clipped
   }
 
   def divide(mat1: Array[Float], scalar: Float): Array[Float] = {
