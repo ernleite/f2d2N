@@ -1,11 +1,8 @@
 package com.deeplearning.layer
 
-import breeze.linalg.{DenseVector, normalize}
 import com.deeplearning.CostManager.{dotProduct, getIndex}
 import com.deeplearning.{ActivationManager, ComputeActivation, ComputeInputs, ComputeWeighted, CostManager, LayerManager, Network, Normalisation}
-import com.deeplearning.Network.{LearningRate, generateRandomBiasFloat, generateRandomFloat}
-
-import java.time.{Duration, Instant}
+import com.deeplearning.Network.{generateRandomFloat}
 
 class DenseActivationLayer extends ActivationLayer {
   private val parameters = scala.collection.mutable.HashMap.empty[String,String]
