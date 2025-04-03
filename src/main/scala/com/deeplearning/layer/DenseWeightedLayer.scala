@@ -61,13 +61,13 @@ class DenseWeightedLayer extends WeightedLayer {
       split = Network.getHiddenLayers(nextLayer, "hidden")
     else
       split = Network.OutputLayer
-    val sizeact = Network.getHiddenLayersDim(layer, "weighted")
+    val verticalParallelism = Network.getHiddenLayersDim(layer, "weighted")
     if (!this.wInitialized) {
       ucIndex = internalSubLayer
       this.activationsLength = activations.length
 
-      if (sizeact>1) {
-        val tmp = generateRandomFloat(nextLayerSize*activationsLength).grouped(activationsLength*nextLayerSize /sizeact).toArray
+      if (verticalParallelism>1) {
+        val tmp = generateRandomFloat(nextLayerSize*activationsLength).grouped(activationsLength*nextLayerSize /verticalParallelism).toArray
         this.weights =  tmp(internalSubLayer)
       }
       else {
@@ -107,12 +107,14 @@ class DenseWeightedLayer extends WeightedLayer {
       activation(correlationId) = activations
 
       inProgress(correlationId) = false
+      val isVerticallyParallelized = (verticalParallelism >1)
+
       var w1 = Array.fill(split)(0.0f)
-      if (sizeact>1) {
+      if (isVerticallyParallelized) {
         val weigthsGrouped = weights.grouped(activationsLength).toArray
         val dim = weigthsGrouped.length
-        val residu1 = if (weigthsGrouped(dim-1).size == activationsLength) 0 else weigthsGrouped(0).size- weigthsGrouped(dim-1).size
-        if (residu1 == 0 ) {
+        val residue = if (weigthsGrouped(dim-1).size == activationsLength) 0 else weigthsGrouped(0).size- weigthsGrouped(dim-1).size
+        if (residue == 0) {
           val weigthsGrouped = weights.grouped(activationsLength).toArray
           w1 =  CostManager.initInputs(weigthsGrouped.flatten, activations, dim)
         }
@@ -121,18 +123,17 @@ class DenseWeightedLayer extends WeightedLayer {
           weigthsGrouped(weigthsGrouped.size-1) = weigthsGrouped(weigthsGrouped.size-1).padTo(activationsLength, 0.0f)
           w1 =  CostManager.initInputs(weigthsGrouped.flatten, activations, dim)
         }
-        else if ( (internalSubLayer+1) < sizeact) {
+        else if ( (internalSubLayer+1) < verticalParallelism) {
           val indexes = CostManager.getRange(weights.length, activationsLength, nextLayerSize, internalSubLayer)
           val weightstmp = Array.fill(indexes(0))(0.0f) ++ weights ++  Array.fill(indexes(1))(0.0f)
           val weigthsGrouped = weightstmp.grouped(activationsLength).toArray
           w1 =  CostManager.initInputs(weigthsGrouped.flatten, activations, weigthsGrouped.length)
         }
-        else if ((internalSubLayer+1) ==sizeact) {
-          val weightstmp = Array.fill(residu1)(0.0f) ++ weights
+        else if ((internalSubLayer+1) == verticalParallelism) {
+          val weightstmp = Array.fill(residue)(0.0f) ++ weights
           val weigthsGrouped = weightstmp.grouped(activationsLength).toArray
           w1 =  CostManager.initInputs(weigthsGrouped.flatten, activations, dim)
         }
-
       }
       else {
         w1 = CostManager.initInputs(weights, activation(correlationId), split)

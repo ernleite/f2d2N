@@ -366,6 +366,9 @@ class DenseActivationLayer extends ActivationLayer {
       shardReceived += (correlationId -> 0)
     }
     val activationLength = bias.length
+    if (layer == 3) {
+      val test = 1
+    }
     if (shardReceived(correlationId) < shards) {
       shardReceived(correlationId) += 1
       if (shardedWeighted.size == activationLength) {

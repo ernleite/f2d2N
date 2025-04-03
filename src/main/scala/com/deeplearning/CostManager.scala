@@ -602,7 +602,7 @@ object CostManager {
   }
 
   def getIndex(from:Int, to:Int, position:Int) : Int= {
-    val divide = (to/from.toFloat).toFloat
+    val divide = (to/from.toFloat)
     val pos = divide*(position)
     pos.toInt
   }
