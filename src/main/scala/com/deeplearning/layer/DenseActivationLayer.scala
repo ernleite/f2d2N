@@ -71,25 +71,23 @@ class DenseActivationLayer extends ActivationLayer {
           weighted(correlationId) = CostManager.matrixSum(weighted(correlationId), shardedWeighted)
       }
       else {
-        if (shardReceived(correlationId) <= shards) {
-          val biasLength = bias.length
-          // First vertical UC 0
-          if (fromInternalSubLayer == 0) {
-            val weightedTmp = shardedWeighted.padTo(biasLength, 0.0f)
-            weighted(correlationId) = CostManager.matrixSum(weighted(correlationId), weightedTmp)
-          }
-          // in between vertical UC 1 ... UC -1
-          else if ((fromInternalSubLayer + 1) < shards) {
-            val index = getIndex(shards, biasLength, fromInternalSubLayer)
-            val weightedTmp = Array.fill(biasLength)(0.0f)
-            Array.copy(shardedWeighted, 0, weightedTmp, index, shardedWeighted.length)
-            weighted(correlationId) = CostManager.matrixSum(weighted(correlationId), weightedTmp)
-          }
-          // Last vertical UC
-          else if ((fromInternalSubLayer + 1) == shards) {
-            val act2 = Array.fill(biasLength - shardedWeighted.length)(0.0f) ++ shardedWeighted
-            weighted(correlationId) = CostManager.matrixSum(weighted(correlationId), act2)
-          }
+        val biasLength = bias.length
+        // First vertical UC 0
+        if (fromInternalSubLayer == 0) {
+          val weightedTmp = shardedWeighted.padTo(biasLength, 0.0f)
+          weighted(correlationId) = CostManager.matrixSum(weighted(correlationId), weightedTmp)
+        }
+        // in between vertical UC 1 ... UC -1
+        else if ((fromInternalSubLayer + 1) < shards) {
+          val index = getIndex(shards, biasLength, fromInternalSubLayer)
+          val weightedTmp = Array.fill(biasLength)(0.0f)
+          Array.copy(shardedWeighted, 0, weightedTmp, index, shardedWeighted.length)
+          weighted(correlationId) = CostManager.matrixSum(weighted(correlationId), weightedTmp)
+        }
+        // Last vertical UC
+        else if ((fromInternalSubLayer + 1) == shards) {
+          val act2 = Array.fill(biasLength - shardedWeighted.length)(0.0f) ++ shardedWeighted
+          weighted(correlationId) = CostManager.matrixSum(weighted(correlationId), act2)
         }
       }
     }
