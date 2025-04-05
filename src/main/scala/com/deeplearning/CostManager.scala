@@ -1204,7 +1204,7 @@ object CostManager {
     }
   }
 
-  def sum2(mat1: Array[Float], mat2: Array[Float]): Array[Float] = {
+  def matrixSum(mat1: Array[Float], mat2: Array[Float]): Array[Float] = {
     if (Network.GpuMode) {
       val GpuManager: NDManager = NDManager.newBaseManager(Device.gpu(0))
       val array1 = GpuManager.create(mat1)

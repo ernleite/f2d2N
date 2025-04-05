@@ -99,7 +99,7 @@ class DenseWeightedLayer extends WeightedLayer {
     shardReceived(correlationId) +=1
 
     if (shardReceived(correlationId) < shards && inProgress(correlationId)) {
-      activation(correlationId) = CostManager.sum2(activation(correlationId), activations)
+      activation(correlationId) = CostManager.matrixSum(activation(correlationId), activations)
       null
     }
     else {
@@ -372,7 +372,7 @@ class DenseWeightedLayer extends WeightedLayer {
           if (w2==null)
             w2 = s
           else
-            w2 = CostManager.sum2(w2,s)
+            w2 = CostManager.matrixSum(w2,s)
 
 
           this.weights = CostManager.applyGradientsLight(w2, weights,Network.MiniBatch,learningRate / Network.MiniBatch, 1 - learningRate * (regularisation / nInputs))
@@ -425,7 +425,7 @@ class DenseWeightedLayer extends WeightedLayer {
     if (gradientsSync(correlationId)(fromInternalSubLayer) == null)
       gradientsSync(correlationId)(fromInternalSubLayer) = gradients
     else
-      gradientsSync(correlationId)(fromInternalSubLayer) = CostManager.sum2(gradientsSync(correlationId)(fromInternalSubLayer),gradients)
+      gradientsSync(correlationId)(fromInternalSubLayer) = CostManager.matrixSum(gradientsSync(correlationId)(fromInternalSubLayer),gradients)
 
     val currentLayerSize = Network.getHiddenLayersDim(layer, "weightedLayer")
    // println(syncReceived(correlationId) + "  layer : " + layer + " : " + internalSubLayer + " "  + fromInternalSubLayer)

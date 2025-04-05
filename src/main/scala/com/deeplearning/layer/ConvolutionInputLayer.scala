@@ -137,8 +137,8 @@ class ConvolutionInputLayer extends InputLayer {
         else {
           val test2 = output2.flatten
           val test1 = this.inputsConvolved(correlationId)(i)
-          this.inputsConvolved(correlationId)(i) = CostManager.sum2(this.inputsConvolved(correlationId)(i), output2.flatten)
-          weighedfilters(i) =  CostManager.sum2(weighedfilters(i),output1.flatten)
+          this.inputsConvolved(correlationId)(i) = CostManager.matrixSum(this.inputsConvolved(correlationId)(i), output2.flatten)
+          weighedfilters(i) =  CostManager.matrixSum(weighedfilters(i),output1.flatten)
         }
       }
      // weighedfilters(i) = CostManager.batchNormalize(weighedfilters(i))
@@ -238,7 +238,7 @@ class ConvolutionInputLayer extends InputLayer {
           if (this.sharedNabla(i) == null)
             this.sharedNabla(i) = grouped(j)(i)
           else
-            this.sharedNabla(i) = CostManager.sum2(this.sharedNabla(i), grouped(j)(i))
+            this.sharedNabla(i) = CostManager.matrixSum(this.sharedNabla(i), grouped(j)(i))
         }
 
        // val tmp1 = CostManager.matMulScalar(( learningRate ), this.filters(i))
@@ -316,7 +316,7 @@ class ConvolutionInputLayer extends InputLayer {
           weighedfilters(i) = output1.flatten
         }
         else {
-          weighedfilters(i) = CostManager.sum2(weighedfilters(i), output1.flatten)
+          weighedfilters(i) = CostManager.matrixSum(weighedfilters(i), output1.flatten)
         }
       }
     }

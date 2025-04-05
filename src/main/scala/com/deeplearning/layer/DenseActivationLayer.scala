@@ -68,36 +68,36 @@ class DenseActivationLayer extends ActivationLayer {
         if (!weighted.contains(correlationId))
           weighted += (correlationId -> shardedWeighted)
         else
-          weighted(correlationId) = CostManager.sum2(weighted(correlationId), shardedWeighted)
+          weighted(correlationId) = CostManager.matrixSum(weighted(correlationId), shardedWeighted)
       }
       else {
         if (shardReceived(correlationId) <= shards) {
           val biasLength = bias.length
+          // First vertical UC 0
           if (fromInternalSubLayer == 0) {
-            val act = shardedWeighted.padTo(biasLength, 0.0f)
-            weighted(correlationId) = CostManager.sum2(weighted(correlationId), act)
+            val weightedTmp = shardedWeighted.padTo(biasLength, 0.0f)
+            weighted(correlationId) = CostManager.matrixSum(weighted(correlationId), weightedTmp)
           }
+          // in between vertical UC 1 ... UC -1
           else if ((fromInternalSubLayer + 1) < shards) {
             val index = getIndex(shards, biasLength, fromInternalSubLayer)
-            val test = Array.fill(biasLength)(0.0f)
-            Array.copy(shardedWeighted, 0, test, index, shardedWeighted.length)
-            weighted(correlationId) = CostManager.sum2(weighted(correlationId), test)
+            val weightedTmp = Array.fill(biasLength)(0.0f)
+            Array.copy(shardedWeighted, 0, weightedTmp, index, shardedWeighted.length)
+            weighted(correlationId) = CostManager.matrixSum(weighted(correlationId), weightedTmp)
           }
+          // Last vertical UC
           else if ((fromInternalSubLayer + 1) == shards) {
             val act2 = Array.fill(biasLength - shardedWeighted.length)(0.0f) ++ shardedWeighted
-            weighted(correlationId) = CostManager.sum2(weighted(correlationId), act2)
+            weighted(correlationId) = CostManager.matrixSum(weighted(correlationId), act2)
           }
-
         }
       }
     }
 
     if (shards == shardReceived(correlationId) && inProgress(correlationId)) {
-      val z = CostManager.sum2(weighted(correlationId) , bias)
+      val z = CostManager.matrixSum(weighted(correlationId) , bias)
       Z += (correlationId -> z)
       activation(correlationId)  = CostManager.ComputeZ(Network.getActivationLayersType(layer), z)
-      val ttt = activation(correlationId)
-
 
       if (Network.dropout > 0) {
         activation(correlationId) = Network.dropout(activation(correlationId))
@@ -173,12 +173,12 @@ class DenseActivationLayer extends ActivationLayer {
 
     if (bpShardReceived(correlationId) <= sizeact) {
       if (biasLength == delta.length) {
-        deltaSync(correlationId) = CostManager.sum2(deltaSync(correlationId), delta)
+        deltaSync(correlationId) = CostManager.matrixSum(deltaSync(correlationId), delta)
       }
       else {
         if (fromInternalSubLayer == 0) {
           val act = delta.padTo(biasLength, 0.0f)
-          deltaSync(correlationId) = CostManager.sum2(deltaSync(correlationId), act)
+          deltaSync(correlationId) = CostManager.matrixSum(deltaSync(correlationId), act)
         }
         else if ((fromInternalSubLayer+1) < shards) {
           val test = Array.fill(biasLength)(0.0f)
@@ -191,11 +191,11 @@ class DenseActivationLayer extends ActivationLayer {
             var index = multiplier*fromInternalSubLayer-1
             Array.copy(delta, 0, test, index, delta.length)
           }
-          deltaSync(correlationId) = CostManager.sum2(deltaSync(correlationId), test)
+          deltaSync(correlationId) = CostManager.matrixSum(deltaSync(correlationId), test)
         }
         else if ( (fromInternalSubLayer+1) == shards) {
           val act2 =  Array.fill(biasLength-delta.length)(0.0f) ++ delta
-          deltaSync(correlationId) = CostManager.sum2(deltaSync(correlationId), act2)
+          deltaSync(correlationId) = CostManager.matrixSum(deltaSync(correlationId), act2)
         }
       }
     }
@@ -252,7 +252,7 @@ class DenseActivationLayer extends ActivationLayer {
     if (gradientsSync(correlationId)(fromInternalSubLayer) == null)
       gradientsSync(correlationId) = gradients
     else
-      gradientsSync(correlationId) = CostManager.sum2(gradientsSync(correlationId),gradients)
+      gradientsSync(correlationId) = CostManager.matrixSum(gradientsSync(correlationId),gradients)
 
     val currentLayerSize = Network.getHiddenLayersDim(layer, "weightedLayer")
     // println(syncReceived(correlationId) + "  layer : " + layer + " : " + internalSubLayer + " "  + fromInternalSubLayer)
@@ -372,24 +372,24 @@ class DenseActivationLayer extends ActivationLayer {
         if (!weighted.contains(correlationId))
           weighted += (correlationId -> shardedWeighted)
         else
-          weighted(correlationId) = CostManager.sum2(weighted(correlationId), shardedWeighted)
+          weighted(correlationId) = CostManager.matrixSum(weighted(correlationId), shardedWeighted)
       }
       else {
         if (shardReceived(correlationId) <= shards) {
           val biasLength = bias.length
           if (fromInternalSubLayer == 0) {
             val act = shardedWeighted.padTo(biasLength, 0.0f)
-            weighted(correlationId) = CostManager.sum2(weighted(correlationId), act)
+            weighted(correlationId) = CostManager.matrixSum(weighted(correlationId), act)
           }
           else if ((fromInternalSubLayer + 1) < shards) {
             val index = getIndex(shards, biasLength, fromInternalSubLayer)
             val test = Array.fill(biasLength)(0.0f)
             Array.copy(shardedWeighted, 0, test, index, shardedWeighted.length)
-            weighted(correlationId) = CostManager.sum2(weighted(correlationId), test)
+            weighted(correlationId) = CostManager.matrixSum(weighted(correlationId), test)
           }
           else if ((fromInternalSubLayer + 1) == shards) {
             val act2 = Array.fill(biasLength - shardedWeighted.length)(0.0f) ++ shardedWeighted
-            weighted(correlationId) = CostManager.sum2(weighted(correlationId), act2)
+            weighted(correlationId) = CostManager.matrixSum(weighted(correlationId), act2)
           }
 
         }
@@ -399,7 +399,7 @@ class DenseActivationLayer extends ActivationLayer {
 
     //all received. Lets compute the activation function
     if (shards == shardReceived(correlationId) && inProgress(correlationId)) {
-      val z = CostManager.sum2(weighted(correlationId), bias)
+      val z = CostManager.matrixSum(weighted(correlationId), bias)
       activation(correlationId) = ActivationManager.ComputeZ(Network.getActivationLayersType(layer), z)
       if (Network.LayerNorm) activation(correlationId) = CostManager.layerNorm(activation(correlationId))
 

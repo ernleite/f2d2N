@@ -289,7 +289,7 @@ class ConvolutionActivationLayer extends ActivationLayer {
           if (this.sharedNabla(i) == null)
             this.sharedNabla(i) = grouped(j)(i)
           else
-            this.sharedNabla(i) = CostManager.sum2(this.sharedNabla(i), grouped(j)(i))
+            this.sharedNabla(i) = CostManager.matrixSum(this.sharedNabla(i), grouped(j)(i))
         }
         val tmp2 = CostManager.matMulScalar(learningRate, this.sharedNabla(i))
         this.sharedbias(i) = this.sharedbias(i) - tmp2.sum

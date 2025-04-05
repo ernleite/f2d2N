@@ -98,23 +98,23 @@ class Output(context: ActorContext[ComputeOutput.OutputCommand]) extends Abstrac
           val biasLength = bias.length
           if (fromInternalSubLayer == 0) {
             val act = shardedWeighted.padTo(biasLength, 0.0f)
-            weighted(correlationId) = CostManager.sum2(weighted(correlationId), act)
+            weighted(correlationId) = CostManager.matrixSum(weighted(correlationId), act)
           }
           else if ((fromInternalSubLayer+1) < shards) {
             val index = getIndex(shards, biasLength, fromInternalSubLayer)
             val test = Array.fill(biasLength)(0.0f)
             Array.copy(shardedWeighted, 0, test, index, shardedWeighted.length)
-            weighted(correlationId) = CostManager.sum2(weighted(correlationId), test)
+            weighted(correlationId) = CostManager.matrixSum(weighted(correlationId), test)
           }
           else if ( (fromInternalSubLayer+1) == shards) {
             val act2 =  Array.fill(biasLength-shardedWeighted.length)(0.0f) ++ shardedWeighted
-            weighted(correlationId) = CostManager.sum2(weighted(correlationId), act2)
+            weighted(correlationId) = CostManager.matrixSum(weighted(correlationId), act2)
           }
         }
 
         if (shards == shardReceived(correlationId) && inProgress(correlationId)) {
           counterTraining +=1
-          val z = CostManager.sum2(weighted(correlationId), bias)
+          val z = CostManager.matrixSum(weighted(correlationId), bias)
           activation(correlationId) = ActivationManager.ComputeZ(Network.OutputActivationType, z)
           if (Network.NaN) {
             activation(correlationId) = CostManager.EliminateNaN(activation(correlationId))
@@ -249,23 +249,23 @@ class Output(context: ActorContext[ComputeOutput.OutputCommand]) extends Abstrac
 
           if (fromInternalSubLayer == 0) {
             val act = shardedWeighted.padTo(biasLength, 0.0f)
-            weighted(correlationId) = CostManager.sum2(weighted(correlationId), act)
+            weighted(correlationId) = CostManager.matrixSum(weighted(correlationId), act)
           }
           else if ((fromInternalSubLayer+1) < shards) {
             val index = getIndex(shards, biasLength, fromInternalSubLayer)
             val test = Array.fill(biasLength)(0.0f)
             Array.copy(shardedWeighted, 0, test, index, shardedWeighted.length)
-            weighted(correlationId) = CostManager.sum2(weighted(correlationId), test)
+            weighted(correlationId) = CostManager.matrixSum(weighted(correlationId), test)
           }
           else if ( (fromInternalSubLayer+1) == shards) {
             val act2 =  Array.fill(biasLength-shardedWeighted.length)(0.0f) ++ shardedWeighted
-            weighted(correlationId) = CostManager.sum2(weighted(correlationId), act2)
+            weighted(correlationId) = CostManager.matrixSum(weighted(correlationId), act2)
           }
         }
 
         //all received. Lets compute the activation function
         if (shards == shardReceived(correlationId) && inProgress(correlationId)) {
-          val z = CostManager.sum2(weighted(correlationId), bias)
+          val z = CostManager.matrixSum(weighted(correlationId), bias)
           //val mav = Normalisation.getMeanAndVariance(z)
           //activation(correlationId) = Normalisation.batchNormalize(activation(correlationId), mav._1, mav._3, 0.1f, 0.1f)
           activation(correlationId) = ActivationManager.ComputeZ(Network.OutputActivationType, z)
