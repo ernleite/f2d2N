@@ -20,7 +20,7 @@ class DenseActivationLayer extends ActivationLayer {
   val deltaSync = scala.collection.mutable.HashMap.empty[String, Array[Float]]
 
 
-  override def ComputeZ(epoch: Int, correlationId: String, yLabel: Int, trainingCount: Int, shardedWeighted: Array[Float], internalSubLayer: Int, fromInternalSubLayer:Int, layer: Int, shards: Int, params : scala.collection.mutable.HashMap[String,String]): Array[Float] = {
+  override def ComputeZ(epoch: Int, correlationId: String, yLabel: Int, trainingCount: Int, shardedWeighted: Array[Float], internalSubLayer: Int, fromUCIndex:Int, layer: Int, shards: Int, params : scala.collection.mutable.HashMap[String,String]): Array[Float] = {
     if (lastEpoch != epoch) {
       counterTraining = 0
       counterBackPropagation = 0
@@ -76,19 +76,19 @@ class DenseActivationLayer extends ActivationLayer {
       else {
         val biasLength = bias.length
         // First vertical UC 0
-        if (fromInternalSubLayer == 0) {
+        if (fromUCIndex == 0) {
           val weightedTmp = shardedWeighted.padTo(biasLength, 0.0f)
           weighted(correlationId) = CostManager.matrixSum(weighted(correlationId), weightedTmp)
         }
-        // in between vertical UC 1 ... UC -1
-        else if ((fromInternalSubLayer + 1) < shards) {
-          val index = getIndex(shards, biasLength, fromInternalSubLayer)
+        // from vertical UC 1 to UC -1
+        else if ((fromUCIndex + 1) < shards) {
+          val index = getIndex(shards, biasLength, fromUCIndex)
           val weightedTmp = Array.fill(biasLength)(0.0f)
           Array.copy(shardedWeighted, 0, weightedTmp, index, shardedWeighted.length)
           weighted(correlationId) = CostManager.matrixSum(weighted(correlationId), weightedTmp)
         }
         // Last vertical UC
-        else if ((fromInternalSubLayer + 1) == shards) {
+        else if ((fromUCIndex + 1) == shards) {
           val act2 = Array.fill(biasLength - shardedWeighted.length)(0.0f) ++ shardedWeighted
           weighted(correlationId) = CostManager.matrixSum(weighted(correlationId), act2)
         }
@@ -139,7 +139,7 @@ class DenseActivationLayer extends ActivationLayer {
       null
   }
 
-  override def BackPropagate(correlationId: String, delta: Array[Float], learningRate: Float, regularisation: Float, nInputs: Int, shards:Int, layer: Int, internalSubLayer: Int, fromInternalSubLayer:Int, params : scala.collection.mutable.HashMap[String,String]): Boolean = {
+  override def BackPropagate(correlationId: String, delta: Array[Float], learningRate: Float, regularisation: Float, nInputs: Int, shards:Int, layer: Int, internalSubLayer: Int, fromUCIndex:Int, params : scala.collection.mutable.HashMap[String,String]): Boolean = {
     counterBackPropagation += 1
     //compute the derivative
     //context.log.info(s"Receiving backprogation request correlationId $correlationId HiddenLayer_${layer}_${internalSubLayer}")
@@ -177,24 +177,24 @@ class DenseActivationLayer extends ActivationLayer {
         deltaSync(correlationId) = CostManager.matrixSum(deltaSync(correlationId), delta)
       }
       else {
-        if (fromInternalSubLayer == 0) {
+        if (fromUCIndex == 0) {
           val act = delta.padTo(biasLength, 0.0f)
           deltaSync(correlationId) = CostManager.matrixSum(deltaSync(correlationId), act)
         }
-        else if ((fromInternalSubLayer+1) < shards) {
+        else if ((fromUCIndex+1) < shards) {
           val test = Array.fill(biasLength)(0.0f)
           if (biasLength%delta.length== 0) {
-            val index = multiplier*fromInternalSubLayer
+            val index = multiplier*fromUCIndex
             Array.copy(delta, 0, test, index, delta.length)
           }
           else {
             val padding = biasLength/shards
-            var index = multiplier*fromInternalSubLayer-1
+            var index = multiplier*fromUCIndex-1
             Array.copy(delta, 0, test, index, delta.length)
           }
           deltaSync(correlationId) = CostManager.matrixSum(deltaSync(correlationId), test)
         }
-        else if ( (fromInternalSubLayer+1) == shards) {
+        else if ( (fromUCIndex+1) == shards) {
           val act2 =  Array.fill(biasLength-delta.length)(0.0f) ++ delta
           deltaSync(correlationId) = CostManager.matrixSum(deltaSync(correlationId), act2)
         }
@@ -242,23 +242,23 @@ class DenseActivationLayer extends ActivationLayer {
       false
   }
 
-  override def sendGradients(correlationId: String, gradients: Array[Float], layer:Int, internalSubLayer:Int, fromInternalSubLayer:Int): Unit = {
+  override def sendGradients(correlationId: String, gradients: Array[Float], layer:Int, internalSubLayer:Int, fromUCIndex:Int): Unit = {
     val gr = gradientsSync(correlationId)
     val actorHiddenLayer = Network.LayersIntermediateRef("weighted_" + layer + "_" + internalSubLayer)
-    actorHiddenLayer ! ComputeWeighted.getGradientsNeighbor(correlationId, gr, layer,internalSubLayer,fromInternalSubLayer)
+    actorHiddenLayer ! ComputeWeighted.getGradientsNeighbor(correlationId, gr, layer,internalSubLayer,fromUCIndex)
   }
 
-  override def applyGradients(correlationId: String, gradients: Array[Float], layer:Int, internalSubLayer:Int,fromInternalSubLayer: Int): Unit = {
-    syncReceived(correlationId)(fromInternalSubLayer) += 1
-    if (gradientsSync(correlationId)(fromInternalSubLayer) == null)
+  override def applyGradients(correlationId: String, gradients: Array[Float], layer:Int, internalSubLayer:Int,fromUCIndex: Int): Unit = {
+    syncReceived(correlationId)(fromUCIndex) += 1
+    if (gradientsSync(correlationId)(fromUCIndex) == null)
       gradientsSync(correlationId) = gradients
     else
       gradientsSync(correlationId) = CostManager.matrixSum(gradientsSync(correlationId),gradients)
 
     val currentLayerSize = Network.getHiddenLayersDim(layer, "weightedLayer")
-    // println(syncReceived(correlationId) + "  layer : " + layer + " : " + internalSubLayer + " "  + fromInternalSubLayer)
-    if ((syncReceived(correlationId)(fromInternalSubLayer)+1) == currentLayerSize) {
-      //      println(correlationId + " backpropagation done Layer : " + layer + " : " + internalSubLayer + " "  + fromInternalSubLayer)
+    // println(syncReceived(correlationId) + "  layer : " + layer + " : " + internalSubLayer + " "  + fromUCIndex)
+    if ((syncReceived(correlationId)(fromUCIndex)+1) == currentLayerSize) {
+      //      println(correlationId + " backpropagation done Layer : " + layer + " : " + internalSubLayer + " "  + fromUCIndex)
       backPropagation(correlationId,gradientsSync(correlationId),Network.LearningRate, Network.Regularisation, Network.MiniBatchRange,layer,scala.collection.mutable.HashMap.empty[String, String])
     }
 
@@ -300,7 +300,7 @@ class DenseActivationLayer extends ActivationLayer {
   }
 
 
-  def SynchronizeWeights(correlationId:String, gradients:Array[Float], layer:Int, internalSubLayer:Int, fromInternalSubLayer: Int): Unit = {
+  def SynchronizeWeights(correlationId:String, gradients:Array[Float], layer:Int, internalSubLayer:Int, fromUCIndex: Int): Unit = {
     // check if a buffer is waiting
     if (callerBuffered(correlationId) != null) {
       // Iterate over the hashTable
@@ -311,20 +311,20 @@ class DenseActivationLayer extends ActivationLayer {
         val actorHiddenLayer = Network.LayersHiddenRef("hiddenLayer_" + layer + "_" + i)
         val gradient = gradientsSync(correlationId)
         //   println("----------------------------------------------------------------------------------")
-        //   println("buffered " + ucIndex + " : "  + correlationId + " " + layer + " " + i + " " + fromInternalSubLayer)
+        //   println("buffered " + ucIndex + " : "  + correlationId + " " + layer + " " + i + " " + fromUCIndex)
         //   println("----------------------------------------------------------------------------------")
-        actorHiddenLayer ! ComputeActivation.fromGradientsNeighbor(correlationId, gradient, layer, i, fromInternalSubLayer)
+        actorHiddenLayer ! ComputeActivation.fromGradientsNeighbor(correlationId, gradient, layer, i, fromUCIndex)
       }
       callerBuffered -= (correlationId)
     }
     val x = Network.getHiddenLayersDim(layer, "hidden")
     for (i <- 0 until x if i != internalSubLayer) {
       val actorHiddenLayer = Network.LayersHiddenRef("hiddenLayer_" + layer + "_" + i)
-      actorHiddenLayer ! ComputeActivation.getGradientsNeighbor(correlationId, gradients, layer, internalSubLayer, fromInternalSubLayer)
+      actorHiddenLayer ! ComputeActivation.getGradientsNeighbor(correlationId, gradients, layer, internalSubLayer, fromUCIndex)
     }
   }
 
-  override def getNeighbor(correlationId: String, gradients: Array[Float], layer:Int, internalSubLayerCaller:Int, fromInternalSubLayer: Int) : Unit = {
+  override def getNeighbor(correlationId: String, gradients: Array[Float], layer:Int, internalSubLayerCaller:Int, fromUCIndex: Int) : Unit = {
     val c = gradientsSync.contains(correlationId)
     // gradients not processed yet
     if (!c) {
@@ -336,11 +336,11 @@ class DenseActivationLayer extends ActivationLayer {
     }
     else {
       val actorHiddenLayer = Network.LayersHiddenRef("hiddenLayer_" + layer + "_" + internalSubLayerCaller)
-      actorHiddenLayer ! ComputeActivation.fromGradientsNeighbor(correlationId, gradientsSync(correlationId), layer, internalSubLayerCaller, fromInternalSubLayer)
+      actorHiddenLayer ! ComputeActivation.fromGradientsNeighbor(correlationId, gradientsSync(correlationId), layer, internalSubLayerCaller, fromUCIndex)
     }
   }
 
-  override def FeedForwardTest(correlationId: String, shardedWeighted: Array[Float], internalSubLayer: Int, fromInternalSubLayer:Int, layer: Int, shards: Int): Array[Float] = {
+  override def FeedForwardTest(correlationId: String, shardedWeighted: Array[Float], internalSubLayer: Int, fromUCIndex:Int, layer: Int, shards: Int): Array[Float] = {
     counterFeedForward += 1
     if (layer == 2) {
       val test = 1
@@ -378,17 +378,17 @@ class DenseActivationLayer extends ActivationLayer {
       else {
         if (shardReceived(correlationId) <= shards) {
           val biasLength = bias.length
-          if (fromInternalSubLayer == 0) {
+          if (fromUCIndex == 0) {
             val act = shardedWeighted.padTo(biasLength, 0.0f)
             weighted(correlationId) = CostManager.matrixSum(weighted(correlationId), act)
           }
-          else if ((fromInternalSubLayer + 1) < shards) {
-            val index = getIndex(shards, biasLength, fromInternalSubLayer)
+          else if ((fromUCIndex + 1) < shards) {
+            val index = getIndex(shards, biasLength, fromUCIndex)
             val test = Array.fill(biasLength)(0.0f)
             Array.copy(shardedWeighted, 0, test, index, shardedWeighted.length)
             weighted(correlationId) = CostManager.matrixSum(weighted(correlationId), test)
           }
-          else if ((fromInternalSubLayer + 1) == shards) {
+          else if ((fromUCIndex + 1) == shards) {
             val act2 = Array.fill(biasLength - shardedWeighted.length)(0.0f) ++ shardedWeighted
             weighted(correlationId) = CostManager.matrixSum(weighted(correlationId), act2)
           }
