@@ -62,8 +62,10 @@ class DenseActivationLayer extends ActivationLayer {
       weighted += (correlationId -> Array.fill[Float](activationLength)(0.0f))
     }
 
+    // shards : number of UCs from the previous WL layer
     // correlationId = Unique UID for one sample
     // sum shardedWeighted until receiving all the shards
+    // shardReceived(correlationId) : counter of received message for a specific sample
     if (shardReceived(correlationId) < shards) {
       shardReceived(correlationId) += 1
       // No vertical parallelism
