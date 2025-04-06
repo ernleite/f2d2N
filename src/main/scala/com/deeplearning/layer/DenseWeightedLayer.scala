@@ -98,14 +98,14 @@ class DenseWeightedLayer extends WeightedLayer {
     }
     shardReceived(correlationId) +=1
 
-    if (shardReceived(correlationId) < shards && inProgress(correlationId)) {
+    if (shardReceived(correlationId) < shards ) {
       activation(correlationId) = CostManager.matrixSum(activation(correlationId), activations)
       null
     }
     else {
       val fromUCs = Network.getHiddenLayersDim(layer, "weighted")
+      // store activations for later backpropagation
       activation(correlationId) = activations
-
       inProgress(correlationId) = false
       val isVerticallyParallelized = (verticalParallelism >1)
 
@@ -113,13 +113,16 @@ class DenseWeightedLayer extends WeightedLayer {
       if (isVerticallyParallelized) {
         val weigthsGrouped = weights.grouped(activationsLength).toArray
         val dim = weigthsGrouped.length
-        val residue = if (weigthsGrouped(dim-1).size == activationsLength) 0 else weigthsGrouped(0).size- weigthsGrouped(dim-1).size
+        val residue = if (weigthsGrouped(dim-1).size == activationsLength) 0
+                      else weigthsGrouped(0).size- weigthsGrouped(dim-1).size
+
         if (residue == 0) {
           val weigthsGrouped = weights.grouped(activationsLength).toArray
           w1 =  CostManager.initInputs(weigthsGrouped.flatten, activations, dim)
         }
         else if (internalSubLayer == 0 ) {
           val weigthsGrouped = weights.grouped(activationsLength).toArray
+          // add padding to last dimension
           weigthsGrouped(weigthsGrouped.size-1) = weigthsGrouped(weigthsGrouped.size-1).padTo(activationsLength, 0.0f)
           w1 =  CostManager.initInputs(weigthsGrouped.flatten, activations, dim)
         }
@@ -138,7 +141,6 @@ class DenseWeightedLayer extends WeightedLayer {
       else {
         w1 = CostManager.initInputs(weights, activation(correlationId), split)
       }
-
       weighted(correlationId) = w1
 
       if (Network.CheckNaN) {
