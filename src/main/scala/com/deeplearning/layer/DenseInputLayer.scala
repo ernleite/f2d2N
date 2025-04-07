@@ -48,7 +48,7 @@ class DenseInputLayer extends InputLayer {
     var duration = Duration.between(startedAt, endedAt).toMillis
     startAt = Instant.now
 
-    val w1 = CostManager.initInputs(weights, this.X(correlationId), Network.getHiddenLayers(nextLayer, "hidden"))
+    val w1 = CostManager.matrixMult(weights, this.X(correlationId), Network.getHiddenLayers(nextLayer, "hidden"))
     endedAt = Instant.now
     duration = Duration.between(startedAt, endedAt).toMillis
 
@@ -120,7 +120,7 @@ class DenseInputLayer extends InputLayer {
       this.XTest += (correlationId -> data)
     }
 
-    val w1 = CostManager.initInputs(weights, this.XTest(correlationId), Network.getHiddenLayers(nextLayer, "hidden"))
+    val w1 = CostManager.matrixMult(weights, this.XTest(correlationId), Network.getHiddenLayers(nextLayer, "hidden"))
     val actorHiddenLayer = Network.LayersHiddenRef("hiddenLayer_" + nextLayer + "_0")
     actorHiddenLayer ! ComputeActivation.FeedForwardTest(correlationId, w1, 0, internalSubLayer, nextLayer, Network.InputLayerDim)
     weighted -= (correlationId)

@@ -772,7 +772,7 @@ object CostManager {
     }
   }
 
-  def initInputs(mat1: Array[Float], mat2: Array[Float], outputSize:Int): Array[Float] = {
+  def matrixMult(mat1: Array[Float], mat2: Array[Float], outputSize:Int): Array[Float] = {
     if (Network.GpuMode) {
       val gpuManager: NDManager = NDManager.newBaseManager(Device.gpu(0))
       val array1 = gpuManager.create(mat1)

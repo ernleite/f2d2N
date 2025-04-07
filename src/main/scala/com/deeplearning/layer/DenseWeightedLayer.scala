@@ -2,9 +2,8 @@ package com.deeplearning.layer
 
 
 import ai.djl.Device
-import ai.djl.ndarray.types.Shape
 import ai.djl.ndarray.{NDArray, NDManager}
-import com.deeplearning.CostManager.{getIndex, matMul2, roundUpIfFractional}
+import com.deeplearning.CostManager.{getIndex,  roundUpIfFractional}
 import com.deeplearning.Network.generateRandomFloat
 import com.deeplearning.{ComputeActivation, ComputeOutput, ComputeWeighted, CostManager, LayerManager, Network}
 
@@ -118,28 +117,28 @@ class DenseWeightedLayer extends WeightedLayer {
 
         if (residue == 0) {
           val weigthsGrouped = weights.grouped(activationsLength).toArray
-          w1 =  CostManager.initInputs(weigthsGrouped.flatten, activations, dim)
+          w1 =  CostManager.matrixMult(weigthsGrouped.flatten, activations, dim)
         }
         else if (internalSubLayer == 0 ) {
           val weigthsGrouped = weights.grouped(activationsLength).toArray
           // add padding to last dimension
           weigthsGrouped(weigthsGrouped.size-1) = weigthsGrouped(weigthsGrouped.size-1).padTo(activationsLength, 0.0f)
-          w1 =  CostManager.initInputs(weigthsGrouped.flatten, activations, dim)
+          w1 =  CostManager.matrixMult(weigthsGrouped.flatten, activations, dim)
         }
         else if ( (internalSubLayer+1) < verticalParallelism) {
           val indexes = CostManager.getRange(weights.length, activationsLength, nextLayerSize, internalSubLayer)
           val weightstmp = Array.fill(indexes(0))(0.0f) ++ weights ++  Array.fill(indexes(1))(0.0f)
           val weigthsGrouped = weightstmp.grouped(activationsLength).toArray
-          w1 =  CostManager.initInputs(weigthsGrouped.flatten, activations, weigthsGrouped.length)
+          w1 =  CostManager.matrixMult(weigthsGrouped.flatten, activations, weigthsGrouped.length)
         }
         else if ((internalSubLayer+1) == verticalParallelism) {
           val weightstmp = Array.fill(residue)(0.0f) ++ weights
           val weigthsGrouped = weightstmp.grouped(activationsLength).toArray
-          w1 =  CostManager.initInputs(weigthsGrouped.flatten, activations, dim)
+          w1 =  CostManager.matrixMult(weigthsGrouped.flatten, activations, dim)
         }
       }
       else {
-        w1 = CostManager.initInputs(weights, activation(correlationId), split)
+        w1 = CostManager.matrixMult(weights, activation(correlationId), split)
       }
       weighted(correlationId) = w1
 
@@ -511,28 +510,28 @@ class DenseWeightedLayer extends WeightedLayer {
 
       if (residu1 == 0 ) {
         val weigthsGrouped = weights.grouped(activationsLength).toArray
-        w1 =  CostManager.initInputs(weigthsGrouped.flatten, activations, dim)
+        w1 =  CostManager.matrixMult(weigthsGrouped.flatten, activations, dim)
       }
       else if (ucIndex == 0 ) {
         val weigthsGrouped = weights.grouped(activationsLength).toArray
         weigthsGrouped(weigthsGrouped.size-1) = weigthsGrouped(weigthsGrouped.size-1).padTo(activationsLength, 0.0f)
-        w1 =  CostManager.initInputs(weigthsGrouped.flatten, activations, dim)
+        w1 =  CostManager.matrixMult(weigthsGrouped.flatten, activations, dim)
       }
       else if ( (ucIndex+1) < sizeact) {
         val indexes = CostManager.getRange(weights.length, activationsLength, layer+1, ucIndex)
         val weightstmp = Array.fill(indexes(0))(0.0f) ++ weights ++  Array.fill(indexes(1))(0.0f)
         val weigthsGrouped = weightstmp.grouped(activationsLength).toArray
-        w1 =  CostManager.initInputs(weigthsGrouped.flatten, activations, weigthsGrouped.length)
+        w1 =  CostManager.matrixMult(weigthsGrouped.flatten, activations, weigthsGrouped.length)
       }
       else if ((ucIndex+1) ==sizeact) {
         val weightstmp = Array.fill(residu1)(0.0f) ++ weights
         val weigthsGrouped = weightstmp.grouped(activationsLength).toArray
-        w1 =  CostManager.initInputs(weigthsGrouped.flatten, activations, dim)
+        w1 =  CostManager.matrixMult(weigthsGrouped.flatten, activations, dim)
       }
     }
     else {
       val a = activation(correlationId)
-      w1 = CostManager.initInputs(weights, activation(correlationId), split)
+      w1 = CostManager.matrixMult(weights, activation(correlationId), split)
     }
 
     weighted(correlationId) = w1
