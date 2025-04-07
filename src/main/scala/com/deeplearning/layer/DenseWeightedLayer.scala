@@ -140,8 +140,6 @@ class DenseWeightedLayer extends WeightedLayer {
       else {
         w1 = MatrixHelper.matrixMult(weights, activation(correlationId), split)
       }
-      weighted(correlationId) = w1
-
       if (Network.CheckNaN) {
         val nanIndices = weighted(correlationId).zipWithIndex.filter { case (value, _) => value.isNaN || value == 0f }
         // Check if there are any NaN values
@@ -314,11 +312,7 @@ class DenseWeightedLayer extends WeightedLayer {
         val mat1Reshaped = fromMat1.reshape(Network.MiniBatch,deltas.size/ Network.MiniBatch, 1)
         val mat2Reshaped = fromMat2.reshape(Network.MiniBatch, 1, act.size/Network.MiniBatch)
         val result = mat1Reshaped.matMul(mat2Reshaped)
-        val tr = result.toFloatArray
         var s = result.sum(Array(0)).reshape(-1).toFloatArray
-
-        // Reshape the result to [50,1]
-
         if (internalSubLayer==0) {
           s = s.take(weights.length)
         }
