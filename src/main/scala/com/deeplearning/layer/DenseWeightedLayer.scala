@@ -105,25 +105,25 @@ class DenseWeightedLayer extends WeightedLayer {
       val fromUCs = Network.getHiddenLayersDim(layer, "weighted")
       // store activations for later backpropagation
       activation(correlationId) = activations
-      inProgress(correlationId) = false
       val isVerticallyParallelized = (verticalParallelism >1)
-
       var w1 = Array.fill(split)(0.0f)
       if (isVerticallyParallelized) {
+        // group by the size of the activation matrix
         val weigthsGrouped = weights.grouped(activationsLength).toArray
-        val dim = weigthsGrouped.length
-        val residue = if (weigthsGrouped(dim-1).size == activationsLength) 0
-                      else weigthsGrouped(0).size- weigthsGrouped(dim-1).size
+        // get the number of groups
+        val groupedCount = weigthsGrouped.length
+        val residue = if (weigthsGrouped(groupedCount-1).size == activationsLength) 0
+                      else weigthsGrouped(0).size- weigthsGrouped(groupedCount-1).size
 
         if (residue == 0) {
           val weigthsGrouped = weights.grouped(activationsLength).toArray
-          w1 =  CostManager.matrixMult(weigthsGrouped.flatten, activations, dim)
+          w1 =  CostManager.matrixMult(weigthsGrouped.flatten, activations, groupedCount)
         }
         else if (internalSubLayer == 0 ) {
           val weigthsGrouped = weights.grouped(activationsLength).toArray
           // add padding to last dimension
           weigthsGrouped(weigthsGrouped.size-1) = weigthsGrouped(weigthsGrouped.size-1).padTo(activationsLength, 0.0f)
-          w1 =  CostManager.matrixMult(weigthsGrouped.flatten, activations, dim)
+          w1 =  CostManager.matrixMult(weigthsGrouped.flatten, activations, groupedCount)
         }
         else if ( (internalSubLayer+1) < verticalParallelism) {
           val indexes = CostManager.getRange(weights.length, activationsLength, nextLayerSize, internalSubLayer)
@@ -134,7 +134,7 @@ class DenseWeightedLayer extends WeightedLayer {
         else if ((internalSubLayer+1) == verticalParallelism) {
           val weightstmp = Array.fill(residue)(0.0f) ++ weights
           val weigthsGrouped = weightstmp.grouped(activationsLength).toArray
-          w1 =  CostManager.matrixMult(weigthsGrouped.flatten, activations, dim)
+          w1 =  CostManager.matrixMult(weigthsGrouped.flatten, activations, groupedCount)
         }
       }
       else {
