@@ -181,8 +181,7 @@ class DenseActivationLayer extends ActivationLayer {
             Array.copy(delta, 0, test, index, delta.length)
           }
           else {
-            val padding = biasLength/shards
-            var index = multiplier*fromUCIndex-1
+            val index = multiplier*fromUCIndex-1
             Array.copy(delta, 0, test, index, delta.length)
           }
           deltaSync(correlationId) = MatrixHelper.matrixSum(deltaSync(correlationId), test)
