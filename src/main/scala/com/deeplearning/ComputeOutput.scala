@@ -5,7 +5,7 @@ import akka.actor.typed.receptionist.{Receptionist, ServiceKey}
 import akka.actor.typed.scaladsl.{AbstractBehavior, ActorContext, Behaviors}
 import breeze.linalg.DenseVector
 import com.deeplearning.ComputeEpochs.{SetStats, TrainCommand}
-import com.deeplearning.CostManager.{dotProduct3, getIndex}
+import com.deeplearning.MatrixHelper.{dotProduct3, getIndex}
 import com.deeplearning.Network.{Epochs, generateRandomBiasFloat}
 
 import java.time.{Duration, Instant}
@@ -98,26 +98,26 @@ class Output(context: ActorContext[ComputeOutput.OutputCommand]) extends Abstrac
           val biasLength = bias.length
           if (fromInternalSubLayer == 0) {
             val act = shardedWeighted.padTo(biasLength, 0.0f)
-            weighted(correlationId) = CostManager.matrixSum(weighted(correlationId), act)
+            weighted(correlationId) = MatrixHelper.matrixSum(weighted(correlationId), act)
           }
           else if ((fromInternalSubLayer+1) < shards) {
             val index = getIndex(shards, biasLength, fromInternalSubLayer)
             val test = Array.fill(biasLength)(0.0f)
             Array.copy(shardedWeighted, 0, test, index, shardedWeighted.length)
-            weighted(correlationId) = CostManager.matrixSum(weighted(correlationId), test)
+            weighted(correlationId) = MatrixHelper.matrixSum(weighted(correlationId), test)
           }
           else if ( (fromInternalSubLayer+1) == shards) {
             val act2 =  Array.fill(biasLength-shardedWeighted.length)(0.0f) ++ shardedWeighted
-            weighted(correlationId) = CostManager.matrixSum(weighted(correlationId), act2)
+            weighted(correlationId) = MatrixHelper.matrixSum(weighted(correlationId), act2)
           }
         }
 
         if (shards == shardReceived(correlationId) && inProgress(correlationId)) {
           counterTraining +=1
-          val z = CostManager.matrixSum(weighted(correlationId), bias)
+          val z = MatrixHelper.matrixSum(weighted(correlationId), bias)
           activation(correlationId) = ActivationManager.ComputeZ(Network.OutputActivationType, z)
           if (Network.NaN) {
-            activation(correlationId) = CostManager.EliminateNaN(activation(correlationId))
+            activation(correlationId) = MatrixHelper.EliminateNaN(activation(correlationId))
           }
 
           if (counterTraining % Network.minibatchBuffer == 0) {
@@ -153,7 +153,7 @@ class Output(context: ActorContext[ComputeOutput.OutputCommand]) extends Abstrac
 
       case ComputeLoss(correlationId: String, labels:Array[Float], trainingLabelsCount:Int, learningRate:Float, regularisation:Float, internalSubLayer:Int, params : scala.collection.mutable.HashMap[String,String]) =>
         //context.log.info(s"Label is : $searchedLabel in trainingSet ${trainingLabelsCount} for correlationId $correlationId")
-        val delta = CostManager.Delta(labels,activation(correlationId))
+        val delta = MatrixHelper.Delta(labels,activation(correlationId))
 
         if (Network.debug) {
           debugDelta += (s"$counterBackPropagation" -> delta)
@@ -187,7 +187,7 @@ class Output(context: ActorContext[ComputeOutput.OutputCommand]) extends Abstrac
           val trueLabs2 = trueLabels.values.toArray.flatten
           val predictions2 = activation.values.toArray.flatten
           val flatten = nablas_b.values.toArray.flatten
-          val (tmp3, tmp4) = CostManager.categoricalCrossEntropy3(trueLabs2,predictions2, Network.OutputLayer,learningRate / Network.MiniBatch, flatten, bias)
+          val (tmp3, tmp4) = MatrixHelper.categoricalCrossEntropy3(trueLabs2,predictions2, Network.OutputLayer,learningRate / Network.MiniBatch, flatten, bias)
           bias = tmp4
           mse = mse :+ tmp3
 
@@ -249,29 +249,29 @@ class Output(context: ActorContext[ComputeOutput.OutputCommand]) extends Abstrac
 
           if (fromInternalSubLayer == 0) {
             val act = shardedWeighted.padTo(biasLength, 0.0f)
-            weighted(correlationId) = CostManager.matrixSum(weighted(correlationId), act)
+            weighted(correlationId) = MatrixHelper.matrixSum(weighted(correlationId), act)
           }
           else if ((fromInternalSubLayer+1) < shards) {
             val index = getIndex(shards, biasLength, fromInternalSubLayer)
             val test = Array.fill(biasLength)(0.0f)
             Array.copy(shardedWeighted, 0, test, index, shardedWeighted.length)
-            weighted(correlationId) = CostManager.matrixSum(weighted(correlationId), test)
+            weighted(correlationId) = MatrixHelper.matrixSum(weighted(correlationId), test)
           }
           else if ( (fromInternalSubLayer+1) == shards) {
             val act2 =  Array.fill(biasLength-shardedWeighted.length)(0.0f) ++ shardedWeighted
-            weighted(correlationId) = CostManager.matrixSum(weighted(correlationId), act2)
+            weighted(correlationId) = MatrixHelper.matrixSum(weighted(correlationId), act2)
           }
         }
 
         //all received. Lets compute the activation function
         if (shards == shardReceived(correlationId) && inProgress(correlationId)) {
-          val z = CostManager.matrixSum(weighted(correlationId), bias)
+          val z = MatrixHelper.matrixSum(weighted(correlationId), bias)
           //val mav = Normalisation.getMeanAndVariance(z)
           //activation(correlationId) = Normalisation.batchNormalize(activation(correlationId), mav._1, mav._3, 0.1f, 0.1f)
           activation(correlationId) = ActivationManager.ComputeZ(Network.OutputActivationType, z)
 
           if (Network.NaN) {
-            activation(correlationId) = CostManager.EliminateNaN(activation(correlationId))
+            activation(correlationId) = MatrixHelper.EliminateNaN(activation(correlationId))
           }
           inProgress(correlationId) = false
           shardReceived(correlationId) = 0

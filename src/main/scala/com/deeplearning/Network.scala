@@ -16,8 +16,8 @@ object Network {
   val InputActivationType = "Sigmoid"
   val InputLayer = if (Network.trainingSample == "Cifar10") 3072 else 784 // 784 Mnist or 3072 Cifar
   val InputLayerDim = 8 // Vertical split
-  val HiddenLayers = Array[Int](1500) // Neurons size : horizontal parallelism
-  val HiddenLayersDim = Array[Int](2) // Vertical parallelism : Disabled if 1
+  val HiddenLayers = Array[Int](100,250) // Neurons size : horizontal parallelism
+  val HiddenLayersDim = Array[Int](2,5) // Vertical parallelism : Disabled if 1
   val HiddenLayerType = Array[String]( "Dense","Dense","Dense","Dense") // Dense or Conv2D
   val HiddenActivationType = Array[String]( "Sigmoid", "Sigmoid", "Sigmoid", "Sigmoid") // Sigmoid, Relu, TanH, LeakyRelu
   val Filters = Array[String]("filters:5;kernel:3,3;stride:1;padding:same","filters:10;kernel:3,3;stride:1;padding:same")

@@ -4,9 +4,9 @@ import ai.djl.Device
 import ai.djl.ndarray.{NDArray, NDManager}
 import breeze.linalg.{DenseVector, normalize}
 import com.deeplearning
-import com.deeplearning.CostManager.{dotProduct, dotProduct3, dotProduct4, dotProduct6}
+import com.deeplearning.MatrixHelper.{dotProduct, dotProduct3, dotProduct4, dotProduct6}
 import com.deeplearning.Network.heInitialization
-import com.deeplearning.{ComputeActivation, ComputeWeighted, CostManager, LayerManager, Network, Normalisation}
+import com.deeplearning.{ComputeActivation, ComputeWeighted, MatrixHelper, LayerManager, Network, Normalisation}
 
 
 class ConvolutionWeightedLayer extends WeightedLayer {
@@ -122,8 +122,8 @@ class ConvolutionWeightedLayer extends WeightedLayer {
             weighedfilters(i) = output1.flatten
           }
           else {
-            this.inputsConvolved(correlationId)(i) = CostManager.matrixSum(this.inputsConvolved(correlationId)(i), output2.flatten)
-            weighedfilters(i) = CostManager.matrixSum(weighedfilters(i), output1.flatten)
+            this.inputsConvolved(correlationId)(i) = MatrixHelper.matrixSum(this.inputsConvolved(correlationId)(i), output2.flatten)
+            weighedfilters(i) = MatrixHelper.matrixSum(weighedfilters(i), output1.flatten)
           }
         }
        // weighedfilters(i) = CostManager.batchNormalize(weighedfilters(i))
@@ -233,7 +233,7 @@ class ConvolutionWeightedLayer extends WeightedLayer {
             val firstElement: Float = row(j)
             newKernel(j)(k) = firstElement
           }
-          newKernel2(j) = CostManager.dotProduct(newKernel(j), deltaFilters(i)).sum
+          newKernel2(j) = MatrixHelper.dotProduct(newKernel(j), deltaFilters(i)).sum
         }
         //nablas_w(correlationId)(fromInternalSubLayer) = dotProduct3(delta.length, delta, activation(correlationId))
         //val newdelta = dotProduct4(LayerManager.GetDenseLayerStep(layer), weights(fromInternalSubLayer), delta)
@@ -267,13 +267,13 @@ class ConvolutionWeightedLayer extends WeightedLayer {
             if (this.sharedNabla(i) == null)
               this.sharedNabla(i) = grouped(j)(i)
             else
-              this.sharedNabla(i) = CostManager.matrixSum(this.sharedNabla(i), grouped(j)(i))
+              this.sharedNabla(i) = MatrixHelper.matrixSum(this.sharedNabla(i), grouped(j)(i))
           }
 
-          val tmp1 = CostManager.matMulScalar((1 - learningRate * (regularisation / nInputs)), this.filters(i))
-          val tmp2 = CostManager.matMulScalar(learningRate / Network.MiniBatch, this.sharedNabla(i))
+          val tmp1 = MatrixHelper.matMulScalar((1 - learningRate * (regularisation / nInputs)), this.filters(i))
+          val tmp2 = MatrixHelper.matMulScalar(learningRate / Network.MiniBatch, this.sharedNabla(i))
           //val tmp3 = CostManager.matMulScalar(learningRate / Network.MiniBatch, this.sharedNabla(i))
-          this.filters(i) = CostManager.minus(tmp1, tmp2)
+          this.filters(i) = MatrixHelper.minus(tmp1, tmp2)
         }
 
 

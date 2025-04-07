@@ -2,7 +2,7 @@ package com.deeplearning
 
 import breeze.linalg.{DenseMatrix, DenseVector, InjectNumericOps, max}
 import breeze.numerics.{sigmoid, tanh}
-import com.deeplearning.CostManager.dotProduct
+import com.deeplearning.MatrixHelper.dotProduct
 
 object ActivationManager {
   def ComputeZ(ActivationFunction : String, z:Array[Float]) : Array[Float] = {
@@ -20,7 +20,7 @@ object ActivationManager {
         }
         arr
          */
-        CostManager.softMax(z)
+        MatrixHelper.softMax(z)
       case "SiLu" =>
         z * sigmoid(new DenseVector(z)).toArray
       case "Sigmoid" =>

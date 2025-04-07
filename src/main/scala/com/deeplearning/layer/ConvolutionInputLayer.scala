@@ -2,7 +2,7 @@ package com.deeplearning.layer
 
 import breeze.linalg.{DenseVector, normalize}
 import com.deeplearning.Network.heInitialization
-import com.deeplearning.{ComputeActivation, CostManager, LayerManager, Network, Normalisation}
+import com.deeplearning.{ComputeActivation, MatrixHelper, LayerManager, Network, Normalisation}
 import com.deeplearning.samples.{CifarData, MnistData, TrainingDataSet}
 
 import java.time.{Duration, Instant}
@@ -137,8 +137,8 @@ class ConvolutionInputLayer extends InputLayer {
         else {
           val test2 = output2.flatten
           val test1 = this.inputsConvolved(correlationId)(i)
-          this.inputsConvolved(correlationId)(i) = CostManager.matrixSum(this.inputsConvolved(correlationId)(i), output2.flatten)
-          weighedfilters(i) =  CostManager.matrixSum(weighedfilters(i),output1.flatten)
+          this.inputsConvolved(correlationId)(i) = MatrixHelper.matrixSum(this.inputsConvolved(correlationId)(i), output2.flatten)
+          weighedfilters(i) =  MatrixHelper.matrixSum(weighedfilters(i),output1.flatten)
         }
       }
      // weighedfilters(i) = CostManager.batchNormalize(weighedfilters(i))
@@ -220,7 +220,7 @@ class ConvolutionInputLayer extends InputLayer {
           val firstElement: Float = row(j)
           newKernel(j)(k) = firstElement
         }
-        newKernel2(j) = CostManager.dotProduct(newKernel(j), deltaFilters(i)).sum
+        newKernel2(j) = MatrixHelper.dotProduct(newKernel(j), deltaFilters(i)).sum
       }
 
       this.sharedNablas(correlationId)(i) = newKernel2
@@ -238,13 +238,13 @@ class ConvolutionInputLayer extends InputLayer {
           if (this.sharedNabla(i) == null)
             this.sharedNabla(i) = grouped(j)(i)
           else
-            this.sharedNabla(i) = CostManager.matrixSum(this.sharedNabla(i), grouped(j)(i))
+            this.sharedNabla(i) = MatrixHelper.matrixSum(this.sharedNabla(i), grouped(j)(i))
         }
 
        // val tmp1 = CostManager.matMulScalar(( learningRate ), this.filters(i))
-         val tmp2 = CostManager.matMulScalar(learningRate , this.sharedNabla(i))
+         val tmp2 = MatrixHelper.matMulScalar(learningRate , this.sharedNabla(i))
         //val tmp3 = CostManager.matMulScalar(learningRate / Network.MiniBatch, this.sharedNabla(i))
-        this.filters(i) = CostManager.minus(this.filters(i), tmp2)
+        this.filters(i) = MatrixHelper.minus(this.filters(i), tmp2)
         //this.filters(i) = CostManager.minus (tmp4, tmp3)
       }
 
@@ -316,7 +316,7 @@ class ConvolutionInputLayer extends InputLayer {
           weighedfilters(i) = output1.flatten
         }
         else {
-          weighedfilters(i) = CostManager.matrixSum(weighedfilters(i), output1.flatten)
+          weighedfilters(i) = MatrixHelper.matrixSum(weighedfilters(i), output1.flatten)
         }
       }
     }

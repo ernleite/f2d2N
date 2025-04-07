@@ -3,9 +3,9 @@ package com.deeplearning.layer
 
 import ai.djl.Device
 import ai.djl.ndarray.{NDArray, NDManager}
-import com.deeplearning.CostManager.{getIndex,  roundUpIfFractional}
+import com.deeplearning.MatrixHelper.{getIndex,  roundUpIfFractional}
 import com.deeplearning.Network.generateRandomFloat
-import com.deeplearning.{ComputeActivation, ComputeOutput, ComputeWeighted, CostManager, LayerManager, Network}
+import com.deeplearning.{ComputeActivation, ComputeOutput, ComputeWeighted, MatrixHelper, LayerManager, Network}
 
 import scala.math._
 import java.time.{Duration, Instant}
@@ -98,7 +98,7 @@ class DenseWeightedLayer extends WeightedLayer {
     shardReceived(correlationId) +=1
 
     if (shardReceived(correlationId) < shards ) {
-      activation(correlationId) = CostManager.matrixSum(activation(correlationId), activations)
+      activation(correlationId) = MatrixHelper.matrixSum(activation(correlationId), activations)
       null
     }
     else {
@@ -117,28 +117,28 @@ class DenseWeightedLayer extends WeightedLayer {
 
         if (residue == 0) {
           val weigthsGrouped = weights.grouped(activationsLength).toArray
-          w1 =  CostManager.matrixMult(weigthsGrouped.flatten, activations, groupedCount)
+          w1 =  MatrixHelper.matrixMult(weigthsGrouped.flatten, activations, groupedCount)
         }
         else if (internalSubLayer == 0 ) {
           val weigthsGrouped = weights.grouped(activationsLength).toArray
           // add padding to last dimension
           weigthsGrouped(weigthsGrouped.size-1) = weigthsGrouped(weigthsGrouped.size-1).padTo(activationsLength, 0.0f)
-          w1 =  CostManager.matrixMult(weigthsGrouped.flatten, activations, groupedCount)
+          w1 =  MatrixHelper.matrixMult(weigthsGrouped.flatten, activations, groupedCount)
         }
         else if ( (internalSubLayer+1) < verticalParallelism) {
-          val indexes = CostManager.getRange(weights.length, activationsLength, nextLayerSize, internalSubLayer)
+          val indexes = MatrixHelper.getRange(weights.length, activationsLength, nextLayerSize, internalSubLayer)
           val weightstmp = Array.fill(indexes(0))(0.0f) ++ weights ++  Array.fill(indexes(1))(0.0f)
           val weigthsGrouped = weightstmp.grouped(activationsLength).toArray
-          w1 =  CostManager.matrixMult(weigthsGrouped.flatten, activations, weigthsGrouped.length)
+          w1 =  MatrixHelper.matrixMult(weigthsGrouped.flatten, activations, weigthsGrouped.length)
         }
         else if ((internalSubLayer+1) == verticalParallelism) {
           val weightstmp = Array.fill(residue)(0.0f) ++ weights
           val weigthsGrouped = weightstmp.grouped(activationsLength).toArray
-          w1 =  CostManager.matrixMult(weigthsGrouped.flatten, activations, groupedCount)
+          w1 =  MatrixHelper.matrixMult(weigthsGrouped.flatten, activations, groupedCount)
         }
       }
       else {
-        w1 = CostManager.matrixMult(weights, activation(correlationId), split)
+        w1 = MatrixHelper.matrixMult(weights, activation(correlationId), split)
       }
       weighted(correlationId) = w1
 
@@ -168,19 +168,12 @@ class DenseWeightedLayer extends WeightedLayer {
       }
 
       if (!LayerManager.IsLast(nextLayer)) {
-        val toNeurons = Network.getHiddenLayers(nextLayer,"hidden")
-        val toUCs = Network.getHiddenLayersDim(nextLayer, "hidden")
-        var splitWeights = Array(w1)
-
         val actorHiddenLayer = Network.LayersHiddenRef("hiddenLayer_" + nextLayer + "_0")
         actorHiddenLayer ! ComputeActivation.ComputeZ(epoch, correlationId, yLabel, trainingCount, w1, 0, internalSubLayer, nextLayer, fromUCs,params, weights)
-
       }
       else if (LayerManager.IsLast(nextLayer)) {
-        for (i <- 0 until Network.OutputLayerDim) {
-          val actorOutputLayer = Network.LayersOutputRef("outputLayer_" + i)
-          actorOutputLayer ! ComputeOutput.Compute(epoch, correlationId, yLabel, trainingCount, w1, i, internalSubLayer, layer+1, fromUCs, params)
-        }
+          val actorOutputLayer = Network.LayersOutputRef("outputLayer_0" )
+          actorOutputLayer ! ComputeOutput.Compute(epoch, correlationId, yLabel, trainingCount, w1, 0, internalSubLayer, layer+1, fromUCs, params)
       }
       null
     }
@@ -201,201 +194,169 @@ class DenseWeightedLayer extends WeightedLayer {
       fromArraySize = Network.getHiddenLayersDim(nextlayer, "hidden")
     }
 
-      this.minibatch(correlationId) += 1
-      this.messagePropagateReceived(correlationId) += 1
-      this.counterBackPropagation += 1
+    this.minibatch(correlationId) += 1
+    this.messagePropagateReceived(correlationId) += 1
+    this.counterBackPropagation += 1
 
-      if (!backPropagateReceived.contains(correlationId)) {
-        backPropagateReceived += (correlationId -> true)
-      }
+    if (!backPropagateReceived.contains(correlationId)) {
+      backPropagateReceived += (correlationId -> true)
+    }
 
-      var callerSize = 0
-      var group = 0
-      if (LayerManager.IsLast(nextlayer)) {
-        hiddenLayerStep = LayerManager.GetOutputLayerStep()
-        arraySize = Network.OutputLayerDim
-        group = LayerManager.GetDenseWeightedLayerStep(layer)
-      }
-      else if (LayerManager.IsFirst(layer - 1)) {
-        arraySize = Network.InputLayerDim
-        group = Network.InputLayerDim
-      }
-      else {
-        arraySize = Network.getHiddenLayersDim(layer, "weighted")
-        group = LayerManager.GetDenseWeightedLayerStep(layer)
-      }
+    var group = 0
+    if (LayerManager.IsLast(nextlayer)) {
+      hiddenLayerStep = LayerManager.GetOutputLayerStep()
+      arraySize = Network.OutputLayerDim
+      group = LayerManager.GetDenseWeightedLayerStep(layer)
+    }
+    else if (LayerManager.IsFirst(layer - 1)) {
+      arraySize = Network.InputLayerDim
+      group = Network.InputLayerDim
+    }
+    else {
+      arraySize = Network.getHiddenLayersDim(layer, "weighted")
+      group = LayerManager.GetDenseWeightedLayerStep(layer)
+    }
 
-      val startedAt = Instant.now
-      nablas_w_tmp2 += (correlationId ->  activation(correlationId))
-      deltas2 += (correlationId -> delta)
-      var endedAt = Instant.now
-      var duration = Duration.between(startedAt, endedAt).toMillis
+    val startedAt = Instant.now
+    nablas_w_tmp2 += (correlationId ->  activation(correlationId))
+    deltas2 += (correlationId -> delta)
+    var endedAt = Instant.now
+    var duration = Duration.between(startedAt, endedAt).toMillis
 
-      val sectionSize = Network.getHiddenLayersDim(layer, "hidden")
-      val layerSize = Network.getHiddenLayers(layer, "hidden")
-      val sizeact = Network.getHiddenLayersDim(layer, "hidden")
+    val sectionSize = Network.getHiddenLayersDim(layer, "hidden")
+    val vecticalParallelism = Network.getHiddenLayersDim(layer, "hidden")
 
-      if (sizeact > 1) {
-        val weigthsGrouped = weights.grouped(activationsLength).toArray
-        val dim = weigthsGrouped.size
+    if (vecticalParallelism > 1) {
+      val weigthsGrouped = weights.grouped(activationsLength).toArray
+      val groupedCount = weigthsGrouped.size
 
-        var w1 = Array.fill(1)(0.0f)
-        val sliceSize = delta.size * activationsLength / sizeact
-        val f = roundUpIfFractional(sliceSize/activationsLength.toDouble)
-        var startIndex = 0
-        var endIndex = 0
+      var w1 = Array.fill(1)(0.0f)
+      val sliceSize = delta.size * activationsLength / vecticalParallelism
+      val f = roundUpIfFractional(sliceSize/activationsLength.toDouble)
+      var startIndex = 0
+      var endIndex = 0
 
-        val residu1 = if (weigthsGrouped(dim-1).size == activationsLength) 0 else weigthsGrouped(0).size- weigthsGrouped(dim-1).size
-        val residu = activationsLength - residu1
+      val residue = if (weigthsGrouped(groupedCount-1).size == activationsLength) 0
+                    else weigthsGrouped(0).size- weigthsGrouped(groupedCount-1).size
 
-        if (residu1 == 0 ) {
-          if (internalSubLayer == 0) {
-            val sizedlt = delta.length/sizeact
-            val deltatmp = delta.take(sizedlt)
-            w1 = CostManager.dotInputs(weights,deltatmp, activationsLength)
-          }
-          else if ((internalSubLayer+1) < sizeact) {
-            val sizedlt = delta.length/sizeact
-            val deltatmp = delta.slice(sizedlt*internalSubLayer, sizedlt*internalSubLayer+sizedlt)
-            w1 = CostManager.dotInputs(weights,deltatmp, activationsLength)
-          }
-          else {
-            val sizedlt = delta.length/sizeact
-            val deltatmp = delta.slice(sizedlt*internalSubLayer, delta.length)
-            w1 = CostManager.dotInputs(weights,deltatmp, activationsLength)
-          }
+      if (residue == 0 ) {
+        if (internalSubLayer == 0) {
+          val sizedlt = delta.length/vecticalParallelism
+          val deltatmp = delta.take(sizedlt)
+          w1 = MatrixHelper.dotInputs(weights,deltatmp, activationsLength)
         }
-        else if (internalSubLayer==0) {
-          val weightstmp = weights.grouped(activationsLength).toArray
-          weigthsGrouped(weightstmp.size-1) = weightstmp(weightstmp.size-1).padTo(activationsLength, 0.0f)
-          startIndex = f*internalSubLayer-1*internalSubLayer
-          endIndex = startIndex+f
-          val dlt2 = delta.slice(startIndex, endIndex)
-          w1 = CostManager.dotInputs( weigthsGrouped.flatten,dlt2, activationsLength)
-        }
-        else if ((internalSubLayer+1) < sizeact) {
-          val indexes = CostManager.getRange(weights.length, activationsLength, fromArraySize, internalSubLayer)
-          var weightstmp = Array.fill(indexes(0))(0.0f) ++ weights ++  Array.fill(indexes(1))(0.0f)
-          /*
-          if (internalSubLayer == 1  || internalSubLayer == 4) {
-            if (sizeact == 3)
-              weightstmp = Array.fill(residu)(0.0f) ++ weights ++  Array.fill(residu)(0.0f)
-            else
-              weightstmp = Array.fill(60)(0.0f) ++ weights ++  Array.fill(60)(0.0f)
-          }
-          else if (internalSubLayer == 2 || internalSubLayer == 5) {
-            weightstmp = Array.fill(30)(0.0f) ++ weights
-          }
-          else if (internalSubLayer == 3 ) {
-            weightstmp = weights ++  Array.fill(30)(0.0f)
-          }
-          */
-          var offset = 0
-          val multiplier = if (delta.length%sectionSize==0)delta.length/sectionSize else delta.length/sectionSize+1
-
-          startIndex = f*internalSubLayer-1*internalSubLayer
-
-          if (internalSubLayer == 4)
-            offset = -1
-          startIndex = multiplier*internalSubLayer-1+offset
-          startIndex = getIndex(sizeact, delta.length, internalSubLayer)
-          val weigthsGrouped = weightstmp.grouped(activationsLength).toArray
-          endIndex = startIndex+weigthsGrouped.length
-          val dlt2 = delta.slice(startIndex, endIndex)
-          w1 = CostManager.dotInputs( weigthsGrouped.flatten,dlt2, activationsLength)
-        }
-        else if ((internalSubLayer+1) ==sizeact) {
-
-          val weightstmp = Array.fill(residu1)(0.0f) ++ weights
-          val weigthsGrouped = weightstmp.grouped(activationsLength).toArray
-
-          val dlt = delta.slice(delta.length - weigthsGrouped.length, delta.length)
-          w1 = CostManager.dotInputs( weigthsGrouped.flatten,dlt, activationsLength)
-        }
-        if (layer ==2) {
-          val test = 1
-        }
-        backPropagation(correlationId, w1, learningRate, regularisation, nInputs, sizeact, layer, params)
-      }
-      else {
-        val w1 = CostManager.dotInputs(weights,delta, group)
-        backPropagation(correlationId, w1, learningRate, regularisation, nInputs, sizeact, layer, params)
-      }
-
-      if (Network.MiniBatch   == minibatch.values.sum) {
-        parameterSended = false
-        parameters("min") = "0"
-        parameters("max") = "0"
-
-        var fromUCs = 1
-        if (!LayerManager.IsLast(nextlayer))
-          fromUCs = Network.getHiddenLayersDim(layer + 1, "hidden")
-
-        endedAt = Instant.now
-        duration = Duration.between(startedAt, endedAt).toMillis
-
-        if (sizeact>1) {
-          // Iterating over the HashMap
-
-          var w2:Array[Float] = null
-          val act = nablas_w_tmp2.values.flatten.toArray
-          val deltas = deltas2.values.flatten.toArray
-          val cpuManager: NDManager = NDManager.newBaseManager(Device.cpu())
-          val array1 = cpuManager.create(deltas)
-          val array2 = cpuManager.create(act)
-          val fromMat1: NDArray = cpuManager.from(array1)
-          val fromMat2: NDArray = cpuManager.from(array2)
-          // 3. Perform linear transformation
-
-          // Perform the outer product
-          val mat1Reshaped = fromMat1.reshape(Network.MiniBatch,deltas.size/ Network.MiniBatch, 1)
-          val mat2Reshaped = fromMat2.reshape(Network.MiniBatch, 1, act.size/Network.MiniBatch)
-
-          val result = mat1Reshaped.matMul(mat2Reshaped)
-          val tr = result.toFloatArray
-          var s = result.sum(Array(0)).reshape(-1).toFloatArray
-
-          // Reshape the result to [50,1]
-
-          if (internalSubLayer==0) {
-            s = s.take(weights.length)
-          }
-          else if (internalSubLayer+1<sizeact) {
-            s = s.slice(weights.length*internalSubLayer, weights.length*internalSubLayer+weights.length)
-          }
-          else {
-            s = s.slice(weights.length*internalSubLayer, s.length)
-          }
-
-          fromMat2.close()
-          fromMat1.close()
-          cpuManager.close()
-          if (w2==null)
-            w2 = s
-          else
-            w2 = CostManager.matrixSum(w2,s)
-
-
-          this.weights = CostManager.applyGradientsLight(w2, weights,Network.MiniBatch,learningRate / Network.MiniBatch, 1 - learningRate * (regularisation / nInputs))
+        else if ((internalSubLayer+1) < vecticalParallelism) {
+          val sizedlt = delta.length/vecticalParallelism
+          val deltatmp = delta.slice(sizedlt*internalSubLayer, sizedlt*internalSubLayer+sizedlt)
+          w1 = MatrixHelper.dotInputs(weights,deltatmp, activationsLength)
         }
         else {
-          val act2 = nablas_w_tmp2.values.flatten.toArray
-          val del2 = deltas2.values.flatten.toArray
-          this.weights = CostManager.applyGradients(del2, act2, Network.MiniBatch, learningRate / Network.MiniBatch, 1 - learningRate * (regularisation / nInputs), this.weights)
+          val sizedlt = delta.length/vecticalParallelism
+          val deltatmp = delta.slice(sizedlt*internalSubLayer, delta.length)
+          w1 = MatrixHelper.dotInputs(weights,deltatmp, activationsLength)
         }
-        gradientsSync.clear()
-        nablas_w_tmp2.clear()
-        fromInternalReceived.clear()
-        activation.clear()
-        backPropagateReceived.clear()
-        messagePropagateReceived.clear()
-        minibatch.clear()
-        nablas_w.clear()
-        weighted.clear()
-        deltas2.clear()
-        shardReceived.clear()
-        inProgress.clear()
+      }
+      else if (internalSubLayer==0) {
+        val weightstmp = weights.grouped(activationsLength).toArray
+        weigthsGrouped(weightstmp.size-1) = weightstmp(weightstmp.size-1).padTo(activationsLength, 0.0f)
+        startIndex = f*internalSubLayer-1*internalSubLayer
+        endIndex = startIndex+f
+        val dlt2 = delta.slice(startIndex, endIndex)
+        w1 = MatrixHelper.dotInputs( weigthsGrouped.flatten,dlt2, activationsLength)
+      }
+      else if ((internalSubLayer+1) < vecticalParallelism) {
+        val indexes = MatrixHelper.getRange(weights.length, activationsLength, fromArraySize, internalSubLayer)
+        val weightstmp = Array.fill(indexes(0))(0.0f) ++ weights ++  Array.fill(indexes(1))(0.0f)
+        val offset = 0
+        val multiplier = if (delta.length%sectionSize==0)delta.length/sectionSize else delta.length/sectionSize+1
+        startIndex = f*internalSubLayer-1*internalSubLayer
+        startIndex = multiplier*internalSubLayer-1+offset
+        startIndex = getIndex(vecticalParallelism, delta.length, internalSubLayer)
+        val weigthsGrouped = weightstmp.grouped(activationsLength).toArray
+        endIndex = startIndex+weigthsGrouped.length
+        val dlt2 = delta.slice(startIndex, endIndex)
+        w1 = MatrixHelper.dotInputs( weigthsGrouped.flatten,dlt2, activationsLength)
+      }
+      else if ((internalSubLayer+1) == vecticalParallelism) {
+        val weightstmp = Array.fill(residue)(0.0f) ++ weights
+        val weigthsGrouped = weightstmp.grouped(activationsLength).toArray
+        val dlt = delta.slice(delta.length - weigthsGrouped.length, delta.length)
+        w1 = MatrixHelper.dotInputs( weigthsGrouped.flatten,dlt, activationsLength)
+      }
+      backPropagation(correlationId, w1, learningRate, regularisation, nInputs, vecticalParallelism, layer, params)
+    }
+    else {
+      val w1 = MatrixHelper.dotInputs(weights,delta, group)
+      backPropagation(correlationId, w1, learningRate, regularisation, nInputs, vecticalParallelism, layer, params)
+    }
 
+    if (Network.MiniBatch   == minibatch.values.sum) {
+      parameterSended = false
+      parameters("min") = "0"
+      parameters("max") = "0"
+
+      var fromUCs = 1
+      if (!LayerManager.IsLast(nextlayer))
+        fromUCs = Network.getHiddenLayersDim(layer + 1, "hidden")
+
+      endedAt = Instant.now
+      duration = Duration.between(startedAt, endedAt).toMillis
+
+      if (vecticalParallelism>1) {
+        var w2:Array[Float] = null
+        val act = nablas_w_tmp2.values.flatten.toArray
+        val deltas = deltas2.values.flatten.toArray
+        val cpuManager: NDManager = NDManager.newBaseManager(Device.cpu())
+        val array1 = cpuManager.create(deltas)
+        val array2 = cpuManager.create(act)
+        val fromMat1: NDArray = cpuManager.from(array1)
+        val fromMat2: NDArray = cpuManager.from(array2)
+        val mat1Reshaped = fromMat1.reshape(Network.MiniBatch,deltas.size/ Network.MiniBatch, 1)
+        val mat2Reshaped = fromMat2.reshape(Network.MiniBatch, 1, act.size/Network.MiniBatch)
+        val result = mat1Reshaped.matMul(mat2Reshaped)
+        val tr = result.toFloatArray
+        var s = result.sum(Array(0)).reshape(-1).toFloatArray
+
+        // Reshape the result to [50,1]
+
+        if (internalSubLayer==0) {
+          s = s.take(weights.length)
+        }
+        else if (internalSubLayer+1<vecticalParallelism) {
+          s = s.slice(weights.length*internalSubLayer, weights.length*internalSubLayer+weights.length)
+        }
+        else {
+          s = s.slice(weights.length*internalSubLayer, s.length)
+        }
+
+        fromMat2.close()
+        fromMat1.close()
+        cpuManager.close()
+        if (w2==null)
+          w2 = s
+        else
+          w2 = MatrixHelper.matrixSum(w2,s)
+
+
+        this.weights = MatrixHelper.applyGradientsLight(w2, weights,Network.MiniBatch,learningRate / Network.MiniBatch, 1 - learningRate * (regularisation / nInputs))
+      }
+      else {
+        val act2 = nablas_w_tmp2.values.flatten.toArray
+        val del2 = deltas2.values.flatten.toArray
+        this.weights = MatrixHelper.applyGradients(del2, act2, Network.MiniBatch, learningRate / Network.MiniBatch, 1 - learningRate * (regularisation / nInputs), this.weights)
+      }
+      gradientsSync.clear()
+      nablas_w_tmp2.clear()
+      fromInternalReceived.clear()
+      activation.clear()
+      backPropagateReceived.clear()
+      messagePropagateReceived.clear()
+      minibatch.clear()
+      nablas_w.clear()
+      weighted.clear()
+      deltas2.clear()
+      shardReceived.clear()
+      inProgress.clear()
       }
     true
   }
@@ -426,7 +387,7 @@ class DenseWeightedLayer extends WeightedLayer {
     if (gradientsSync(correlationId)(fromInternalSubLayer) == null)
       gradientsSync(correlationId)(fromInternalSubLayer) = gradients
     else
-      gradientsSync(correlationId)(fromInternalSubLayer) = CostManager.matrixSum(gradientsSync(correlationId)(fromInternalSubLayer),gradients)
+      gradientsSync(correlationId)(fromInternalSubLayer) = MatrixHelper.matrixSum(gradientsSync(correlationId)(fromInternalSubLayer),gradients)
 
     val currentLayerSize = Network.getHiddenLayersDim(layer, "weightedLayer")
    // println(syncReceived(correlationId) + "  layer : " + layer + " : " + internalSubLayer + " "  + fromInternalSubLayer)
@@ -510,28 +471,28 @@ class DenseWeightedLayer extends WeightedLayer {
 
       if (residu1 == 0 ) {
         val weigthsGrouped = weights.grouped(activationsLength).toArray
-        w1 =  CostManager.matrixMult(weigthsGrouped.flatten, activations, dim)
+        w1 =  MatrixHelper.matrixMult(weigthsGrouped.flatten, activations, dim)
       }
       else if (ucIndex == 0 ) {
         val weigthsGrouped = weights.grouped(activationsLength).toArray
         weigthsGrouped(weigthsGrouped.size-1) = weigthsGrouped(weigthsGrouped.size-1).padTo(activationsLength, 0.0f)
-        w1 =  CostManager.matrixMult(weigthsGrouped.flatten, activations, dim)
+        w1 =  MatrixHelper.matrixMult(weigthsGrouped.flatten, activations, dim)
       }
       else if ( (ucIndex+1) < sizeact) {
-        val indexes = CostManager.getRange(weights.length, activationsLength, layer+1, ucIndex)
+        val indexes = MatrixHelper.getRange(weights.length, activationsLength, layer+1, ucIndex)
         val weightstmp = Array.fill(indexes(0))(0.0f) ++ weights ++  Array.fill(indexes(1))(0.0f)
         val weigthsGrouped = weightstmp.grouped(activationsLength).toArray
-        w1 =  CostManager.matrixMult(weigthsGrouped.flatten, activations, weigthsGrouped.length)
+        w1 =  MatrixHelper.matrixMult(weigthsGrouped.flatten, activations, weigthsGrouped.length)
       }
       else if ((ucIndex+1) ==sizeact) {
         val weightstmp = Array.fill(residu1)(0.0f) ++ weights
         val weigthsGrouped = weightstmp.grouped(activationsLength).toArray
-        w1 =  CostManager.matrixMult(weigthsGrouped.flatten, activations, dim)
+        w1 =  MatrixHelper.matrixMult(weigthsGrouped.flatten, activations, dim)
       }
     }
     else {
       val a = activation(correlationId)
-      w1 = CostManager.matrixMult(weights, activation(correlationId), split)
+      w1 = MatrixHelper.matrixMult(weights, activation(correlationId), split)
     }
 
     weighted(correlationId) = w1

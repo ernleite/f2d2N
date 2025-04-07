@@ -1,7 +1,7 @@
 package com.deeplearning.layer
 
-import com.deeplearning.CostManager.dotProduct
-import com.deeplearning.{ActivationManager, ComputeInputs, ComputeWeighted, CostManager, LayerManager, Network}
+import com.deeplearning.MatrixHelper.dotProduct
+import com.deeplearning.{ActivationManager, ComputeInputs, ComputeWeighted, MatrixHelper, LayerManager, Network}
 class ConvolutionActivationLayer extends ActivationLayer {
 
   var convolutionalFilter: ConvolutionalFilter = _
@@ -108,12 +108,12 @@ class ConvolutionActivationLayer extends ActivationLayer {
           val currenty = currents(y)
           val currntbias = this.sharedbias(y)
 
-          activationfilters = CostManager.sum(currents(y), this.sharedbias(y))
+          activationfilters = MatrixHelper.sum(currents(y), this.sharedbias(y))
           if (Network.dropout > 0) {
             activationfilters = Network.dropout(activationfilters)
           }
           if (Network.NaN) {
-            activationfilters = CostManager.EliminateNaN(activationfilters)
+            activationfilters = MatrixHelper.EliminateNaN(activationfilters)
           }
 
           this.sharedActivation(correlationId)(y) = ActivationManager.ComputeZ(Network.getActivationLayersType(layer), activationfilters)
@@ -215,7 +215,7 @@ class ConvolutionActivationLayer extends ActivationLayer {
 
         var deltaprime = dotProduct(prime, deltaFinal(i))
         if (Network.NaN) {
-          deltaprime = CostManager.EliminateNaN(deltaprime)
+          deltaprime = MatrixHelper.EliminateNaN(deltaprime)
         }
         this.sharedNablas(correlationId)(i) = deltaprime
       }
@@ -289,9 +289,9 @@ class ConvolutionActivationLayer extends ActivationLayer {
           if (this.sharedNabla(i) == null)
             this.sharedNabla(i) = grouped(j)(i)
           else
-            this.sharedNabla(i) = CostManager.matrixSum(this.sharedNabla(i), grouped(j)(i))
+            this.sharedNabla(i) = MatrixHelper.matrixSum(this.sharedNabla(i), grouped(j)(i))
         }
-        val tmp2 = CostManager.matMulScalar(learningRate, this.sharedNabla(i))
+        val tmp2 = MatrixHelper.matMulScalar(learningRate, this.sharedNabla(i))
         this.sharedbias(i) = this.sharedbias(i) - tmp2.sum
       }
       /*
@@ -375,12 +375,12 @@ class ConvolutionActivationLayer extends ActivationLayer {
           var activationfilters: Array[Float] = Array.fill[Float](this.convolutionalFilter.inputRows * this.convolutionalFilter.inputCols)(0.0f)
           //          this.sharedZ(correlationId)(y) = featureMapConcat
 
-          activationfilters = CostManager.sum(currents(y), this.sharedbias(y))
+          activationfilters = MatrixHelper.sum(currents(y), this.sharedbias(y))
           if (Network.dropout > 0) {
             activationfilters = Network.dropout(activationfilters)
           }
           if (Network.NaN) {
-            activationfilters = CostManager.EliminateNaN(activationfilters)
+            activationfilters = MatrixHelper.EliminateNaN(activationfilters)
           }
 
           this.sharedActivation(correlationId)(y) = ActivationManager.ComputeZ(Network.getActivationLayersType(layer), activationfilters)

@@ -7,7 +7,7 @@ import breeze.numerics.{sigmoid, sqrt}
 import ai.djl.nn.Activation
 
 
-object CostManager {
+object MatrixHelper {
   def batchNormalize(input: Array[Float], epsilon: Float = 1e-5f): Array[Float] = {
     val mean = input.sum / input.length.toFloat
     val variance = input.map(x => (x - mean) * (x - mean)).sum / input.length.toFloat
@@ -37,7 +37,7 @@ object CostManager {
   }
 
   def Delta(trueLabels: Array[Float], prediction: Array[Float]): Array[Float] = {
-    CostManager.minus(prediction,trueLabels)
+    MatrixHelper.minus(prediction,trueLabels)
   }
 
   def meanSquareError(predictions: Array[Float], actualValues: Array[Float]): Float = {

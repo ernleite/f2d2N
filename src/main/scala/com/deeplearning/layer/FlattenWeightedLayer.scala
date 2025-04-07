@@ -1,7 +1,7 @@
 package com.deeplearning.layer
 
 import breeze.linalg.DenseVector
-import com.deeplearning.CostManager.{Compute, dotProduct3, dotProduct4, dotProduct6}
+import com.deeplearning.MatrixHelper.{Compute, dotProduct3, dotProduct4, dotProduct6}
 import com.deeplearning.Network.heInitialization
 import com.deeplearning.{ComputeActivation, ComputeOutput, ComputeWeighted, LayerManager, Network}
 

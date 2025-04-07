@@ -1,7 +1,7 @@
 package com.deeplearning.layer
 
 import com.deeplearning.Network.{generateFixedFloat, generateRandomFloat}
-import com.deeplearning.{ComputeActivation, CostManager, LayerManager, Network}
+import com.deeplearning.{ComputeActivation, MatrixHelper, LayerManager, Network}
 import com.deeplearning.samples.{CifarData, MnistData, TrainingDataSet}
 
 import java.time.{Duration, Instant}
@@ -48,7 +48,7 @@ class DenseInputLayer extends InputLayer {
     var duration = Duration.between(startedAt, endedAt).toMillis
     startAt = Instant.now
 
-    val w1 = CostManager.matrixMult(weights, this.X(correlationId), Network.getHiddenLayers(nextLayer, "hidden"))
+    val w1 = MatrixHelper.matrixMult(weights, this.X(correlationId), Network.getHiddenLayers(nextLayer, "hidden"))
     endedAt = Instant.now
     duration = Duration.between(startedAt, endedAt).toMillis
 
@@ -91,7 +91,7 @@ class DenseInputLayer extends InputLayer {
 
       val act = this.X.values.flatten.toArray
       val del = deltas2.values.flatten.toArray
-      weights= CostManager.applyGradients(del,act, Network.MiniBatch , learningRate / Network.MiniBatch,1 - learningRate * (regularisation / nInputs),this.weights)
+      weights= MatrixHelper.applyGradients(del,act, Network.MiniBatch , learningRate / Network.MiniBatch,1 - learningRate * (regularisation / nInputs),this.weights)
 
       //weights = split.flatten
 
@@ -120,7 +120,7 @@ class DenseInputLayer extends InputLayer {
       this.XTest += (correlationId -> data)
     }
 
-    val w1 = CostManager.matrixMult(weights, this.XTest(correlationId), Network.getHiddenLayers(nextLayer, "hidden"))
+    val w1 = MatrixHelper.matrixMult(weights, this.XTest(correlationId), Network.getHiddenLayers(nextLayer, "hidden"))
     val actorHiddenLayer = Network.LayersHiddenRef("hiddenLayer_" + nextLayer + "_0")
     actorHiddenLayer ! ComputeActivation.FeedForwardTest(correlationId, w1, 0, internalSubLayer, nextLayer, Network.InputLayerDim)
     weighted -= (correlationId)
