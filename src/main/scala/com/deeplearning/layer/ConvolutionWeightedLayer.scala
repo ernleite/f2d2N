@@ -150,7 +150,7 @@ class ConvolutionWeightedLayer extends WeightedLayer {
               val mav = Normalisation.getMeanAndVariance(subArr)
               val result = Normalisation.batchNormalize(subArr, mav._1,mav._3, 0.01f, 0f)
               val actorHiddenLayer = Network.LayersHiddenRef("hiddenLayer_" + layer + "_" + internalSubLayer)
-              actorHiddenLayer ! ComputeActivation.ComputeZ(epoch, keysIndexed(index), yLabel, Network.MiniBatchRange, result, internalSubLayer, internalSubLayer, layer, 1,null, null)
+              actorHiddenLayer ! ComputeActivation.ComputeZ(epoch, keysIndexed(index), yLabel, Network.MiniBatchRange, result, internalSubLayer, internalSubLayer, layer, 1,null)
           }
           this.batchNorm.clear()
         }
@@ -158,7 +158,7 @@ class ConvolutionWeightedLayer extends WeightedLayer {
       else {
         val weighted = weighedfilters.flatten
         val actorHiddenLayer = Network.LayersHiddenRef("hiddenLayer_" + layer + "_" + internalSubLayer)
-        actorHiddenLayer ! ComputeActivation.ComputeZ(epoch, correlationId, yLabel, Network.MiniBatchRange, weighted, internalSubLayer, internalSubLayer,  layer, 1,null, null)
+        actorHiddenLayer ! ComputeActivation.ComputeZ(epoch, correlationId, yLabel, Network.MiniBatchRange, weighted, internalSubLayer, internalSubLayer,  layer, 1,null)
       }
 
       weighedfilters

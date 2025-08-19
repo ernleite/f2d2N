@@ -14,7 +14,7 @@ class Activation(context: ActorContext[ComputeActivation.ActivationCommand]) ext
 
   override def onMessage(msg: ComputeActivation.ActivationCommand): Behavior[ComputeActivation.ActivationCommand] = {
     msg match {
-      case ComputeZ(epoch:Int, correlationId: String, yLabel:Int, trainingCount:Int, shardedWeighted: Array[Float], internalSubLayer:Int,fromInternalSubLayer:Int,  layer:Int, shards: Int, params:scala.collection.mutable.HashMap[String,String], weights: Array[Float]) => {
+      case ComputeZ(epoch:Int, correlationId: String, yLabel:Int, trainingCount:Int, shardedWeighted: Array[Float], internalSubLayer:Int,fromInternalSubLayer:Int,  layer:Int, shards: Int, params:scala.collection.mutable.HashMap[String,String]) => {
         eventFF = eventFF + 1
 
         if (this.layer == null) {
@@ -61,7 +61,7 @@ class Activation(context: ActorContext[ComputeActivation.ActivationCommand]) ext
 trait ComputeActivationSerializable
 object ComputeActivation {
   sealed trait ActivationCommand extends ComputeActivationSerializable
-  final case class ComputeZ(Epoch:Int, CorrelationId: String, yLabel:Int, trainingCount:Int, Weighted: Array[Float], InternalSubLayer:Int, FromInternalSubLayer:Int, Layer:Int, Shards: Int, Params:scala.collection.mutable.HashMap[String,String], Weights: Array[Float]) extends ActivationCommand
+  final case class ComputeZ(Epoch:Int, CorrelationId: String, yLabel:Int, trainingCount:Int, Weighted: Array[Float], InternalSubLayer:Int, FromInternalSubLayer:Int, Layer:Int, Shards: Int, Params:scala.collection.mutable.HashMap[String,String]) extends ActivationCommand
   final case class BackPropagate(CorrelationId: String, delta: Array[Float], learningRate : Float, regularisation:Float, nInputs:Int, Shards:Int, Layer:Int, InternalSubLayer:Int, fromInternalSubLayer:Int, params : scala.collection.mutable.HashMap[String,String]) extends ActivationCommand
   final case class FeedForwardTest(CorrelationId: String, Weighted: Array[Float], InternalSubLayer:Int, FromInternalSubLayer:Int, Layer:Int, Shards: Int) extends ActivationCommand
   final case class getStats(replyTo: String, actorIndex : Int) extends ActivationCommand

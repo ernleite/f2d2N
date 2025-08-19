@@ -21,11 +21,11 @@ class DenseActivationLayer extends ActivationLayer {
 
 
   override def ComputeZ(epoch: Int, correlationId: String, yLabel: Int, trainingCount: Int, shardedWeighted: Array[Float], internalSubLayer: Int, fromUCIndex:Int, layer: Int, shards: Int, params : scala.collection.mutable.HashMap[String,String]): Array[Float] = {
-    if (lastEpoch != epoch) {
-      counterTraining = 0
-      counterBackPropagation = 0
-      counterFeedForward = 0
-      lastEpoch = epoch
+    if (this.lastEpoch != epoch) {
+      this.counterTraining = 0
+      this.counterBackPropagation = 0
+      this.counterFeedForward = 0
+      this.lastEpoch = epoch
       this.shardReceived.clear()
       this.bpShardReceived.clear()
       this.syncReceived.clear()
@@ -227,6 +227,7 @@ class DenseActivationLayer extends ActivationLayer {
       deltaSync.clear()
       bpShardReceived.clear()
       syncReceived.clear()
+      messagePropagateReceived.clear()
       true
     }
     else

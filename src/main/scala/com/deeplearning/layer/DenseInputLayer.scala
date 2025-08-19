@@ -60,7 +60,7 @@ class DenseInputLayer extends InputLayer {
 
     weighted(correlationId) = w1
     val actorHiddenLayer = Network.LayersHiddenRef("hiddenLayer_" + nextLayer + "_0")
-    actorHiddenLayer ! ComputeActivation.ComputeZ(epoch, correlationId, yLabel, Network.MiniBatchRange, w1, 0, internalSubLayer, nextLayer, Network.InputLayerDim, params, Array.empty[Float])
+    actorHiddenLayer ! ComputeActivation.ComputeZ(epoch, correlationId, yLabel, Network.MiniBatchRange, w1, 0, internalSubLayer, nextLayer, Network.InputLayerDim, params)
     null
   }
 

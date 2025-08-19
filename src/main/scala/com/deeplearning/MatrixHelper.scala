@@ -773,24 +773,7 @@ object MatrixHelper {
   }
 
   def matrixMult(mat1: Array[Float], mat2: Array[Float], outputSize:Int): Array[Float] = {
-    if (Network.GpuMode) {
-      val gpuManager: NDManager = NDManager.newBaseManager(Device.gpu(0))
-      val array1 = gpuManager.create(mat1)
-      val array2 = gpuManager.create(mat2)
-      val fromMat1: NDArray = gpuManager.from(array1)
-      val fromMat2: NDArray = gpuManager.from(array2)
-      val weights = fromMat1.reshape(outputSize,mat2.size)
-      // 3. Perform linear transformation
-      val c=weights.matMul(fromMat2).toFloatArray
-      array1.close()
-      array2.close()
-      fromMat1.close()
-      fromMat2.close()
-      weights.close()
-      gpuManager.close()
-      c
-    }
-    else {
+
       val cpuManager: NDManager = NDManager.newBaseManager(Device.cpu())
       val array1 = cpuManager.create(mat1)
       val array2 = cpuManager.create(mat2)
@@ -807,7 +790,7 @@ object MatrixHelper {
       weights.close()
       cpuManager.close
       c
-    }
+
   }
 
   def matMul3(mat1: Array[Float], mat2: Array[Float]): Array[Float] = {
@@ -1205,23 +1188,6 @@ object MatrixHelper {
   }
 
   def matrixSum(mat1: Array[Float], mat2: Array[Float]): Array[Float] = {
-    if (Network.GpuMode) {
-      val GpuManager: NDManager = NDManager.newBaseManager(Device.gpu(0))
-      val array1 = GpuManager.create(mat1)
-      val array2 = GpuManager.create(mat2)
-      val fromMat1: NDArray = GpuManager.from(array1)
-      val fromMat2: NDArray = GpuManager.from(array2)
-
-      val c = fromMat1.addi(fromMat2).toFloatArray
-      fromMat1.close()
-      fromMat2.close()
-      array1.close()
-      array2.close()
-      GpuManager.close()
-      c
-    }
-    else {
-
       val CpuManager: NDManager = NDManager.newBaseManager(Device.cpu())
       val array1 = CpuManager.create(mat1)
       val array2 = CpuManager.create(mat2)
@@ -1236,7 +1202,6 @@ object MatrixHelper {
 
       CpuManager.close()
       c
-    }
   }
 
   def scalling(array: Array[Float], min: Float, max: Float, rangeX: Float, rangeY: Float): Array[Float] = {

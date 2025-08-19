@@ -74,15 +74,10 @@ class DenseWeightedLayer extends WeightedLayer {
       }
 
       this.wInitialized = true
-      //parameters += ("min" -> "0")
-      //parameters += ("max" -> "0")
-      //parameters += ("weighted_min" -> "0")
-      //parameters += ("weighted_max" -> "0")
     }
 
     //this.activation += (correlationId -> activations)
     if (!this.minibatch.contains(correlationId)) {
-      this.gradientsSync += (correlationId -> Array.ofDim(1))
       this.minibatch += (correlationId -> 0)
       this.messagePropagateReceived += (correlationId -> 0)
       this.fromInternalReceived += (correlationId -> 0)
@@ -97,84 +92,79 @@ class DenseWeightedLayer extends WeightedLayer {
     }
     shardReceived(correlationId) +=1
 
-    if (shardReceived(correlationId) < shards ) {
-      activation(correlationId) = MatrixHelper.matrixSum(activation(correlationId), activations)
-      null
+    val fromUCs = Network.getHiddenLayersDim(layer, "weighted")
+    // store activations for later backpropagation
+    activation(correlationId) = activations
+    val isVerticallyParallelized = (verticalParallelism >1)
+    var w1 = Array.fill(split)(0.0f)
+    if (isVerticallyParallelized) {
+      // group by the size of the activation matrix
+      val weigthsGrouped = weights.grouped(activationsLength).toArray
+      // get the number of groups
+      val groupedCount = weigthsGrouped.length
+      val residue = if (weigthsGrouped(groupedCount-1).size == activationsLength) 0
+                    else weigthsGrouped(0).size- weigthsGrouped(groupedCount-1).size
+
+      if (residue == 0) {
+        val weigthsGrouped = weights.grouped(activationsLength).toArray
+        w1 =  MatrixHelper.matrixMult(weigthsGrouped.flatten, activations, groupedCount)
+      }
+      else if (internalSubLayer == 0 ) {
+        val weigthsGrouped = weights.grouped(activationsLength).toArray
+        // add padding to last dimension
+        weigthsGrouped(weigthsGrouped.size-1) = weigthsGrouped(weigthsGrouped.size-1).padTo(activationsLength, 0.0f)
+        w1 =  MatrixHelper.matrixMult(weigthsGrouped.flatten, activations, groupedCount)
+      }
+      else if ( (internalSubLayer+1) < verticalParallelism) {
+        val indexes = MatrixHelper.getRange(weights.length, activationsLength, nextLayerSize, internalSubLayer)
+        val weightstmp = Array.fill(indexes(0))(0.0f) ++ weights ++  Array.fill(indexes(1))(0.0f)
+        val weigthsGrouped = weightstmp.grouped(activationsLength).toArray
+        w1 =  MatrixHelper.matrixMult(weigthsGrouped.flatten, activations, weigthsGrouped.length)
+      }
+      else if ((internalSubLayer+1) == verticalParallelism) {
+        val weightstmp = Array.fill(residue)(0.0f) ++ weights
+        val weigthsGrouped = weightstmp.grouped(activationsLength).toArray
+        w1 =  MatrixHelper.matrixMult(weigthsGrouped.flatten, activations, groupedCount)
+      }
     }
     else {
-      val fromUCs = Network.getHiddenLayersDim(layer, "weighted")
-      // store activations for later backpropagation
-      activation(correlationId) = activations
-      val isVerticallyParallelized = (verticalParallelism >1)
-      var w1 = Array.fill(split)(0.0f)
-      if (isVerticallyParallelized) {
-        // group by the size of the activation matrix
-        val weigthsGrouped = weights.grouped(activationsLength).toArray
-        // get the number of groups
-        val groupedCount = weigthsGrouped.length
-        val residue = if (weigthsGrouped(groupedCount-1).size == activationsLength) 0
-                      else weigthsGrouped(0).size- weigthsGrouped(groupedCount-1).size
-
-        if (residue == 0) {
-          val weigthsGrouped = weights.grouped(activationsLength).toArray
-          w1 =  MatrixHelper.matrixMult(weigthsGrouped.flatten, activations, groupedCount)
-        }
-        else if (internalSubLayer == 0 ) {
-          val weigthsGrouped = weights.grouped(activationsLength).toArray
-          // add padding to last dimension
-          weigthsGrouped(weigthsGrouped.size-1) = weigthsGrouped(weigthsGrouped.size-1).padTo(activationsLength, 0.0f)
-          w1 =  MatrixHelper.matrixMult(weigthsGrouped.flatten, activations, groupedCount)
-        }
-        else if ( (internalSubLayer+1) < verticalParallelism) {
-          val indexes = MatrixHelper.getRange(weights.length, activationsLength, nextLayerSize, internalSubLayer)
-          val weightstmp = Array.fill(indexes(0))(0.0f) ++ weights ++  Array.fill(indexes(1))(0.0f)
-          val weigthsGrouped = weightstmp.grouped(activationsLength).toArray
-          w1 =  MatrixHelper.matrixMult(weigthsGrouped.flatten, activations, weigthsGrouped.length)
-        }
-        else if ((internalSubLayer+1) == verticalParallelism) {
-          val weightstmp = Array.fill(residue)(0.0f) ++ weights
-          val weigthsGrouped = weightstmp.grouped(activationsLength).toArray
-          w1 =  MatrixHelper.matrixMult(weigthsGrouped.flatten, activations, groupedCount)
-        }
-      }
-      else {
-        w1 = MatrixHelper.matrixMult(weights, activation(correlationId), split)
-      }
-      if (Network.CheckNaN) {
-        val nanIndices = weighted(correlationId).zipWithIndex.filter { case (value, _) => value.isNaN || value == 0f }
-        // Check if there are any NaN values
-        if (nanIndices.nonEmpty) {
-          println("NaN values found at indices:")
-          nanIndices.foreach { case (_, index) => println(index) }
-        } else {
-          println("No NaN values found in the array.")
-        }
-      }
-
-      val endedAt = Instant.now
-      val duration = Duration.between(startedAt, endedAt).toMillis
-
-      if (counterTraining % Network.minibatchBuffer == 0 && Network.debug) {
-        println("-------------------------------------------")
-        println("Weighted init duration : " + duration)
-      }
-
-      if (!parameterSended) {
-        //    parameters("min") = weights.min.toString
-        //    parameters("max") = weights.max.toString
-        parameterSended = true
-      }
-
-      if (!LayerManager.IsLast(nextLayer)) {
-        val actorHiddenLayer = Network.LayersHiddenRef("hiddenLayer_" + nextLayer + "_0")
-        actorHiddenLayer ! ComputeActivation.ComputeZ(epoch, correlationId, yLabel, trainingCount, w1, 0, internalSubLayer, nextLayer, fromUCs,params, weights)
-      }
-      else if (LayerManager.IsLast(nextLayer)) {
-          val actorOutputLayer = Network.LayersOutputRef("outputLayer_0" )
-          actorOutputLayer ! ComputeOutput.Compute(epoch, correlationId, yLabel, trainingCount, w1, 0, internalSubLayer, layer+1, fromUCs, params)
-      }
-      null
+      w1 = MatrixHelper.matrixMult(weights, activation(correlationId), split)
     }
+    if (Network.CheckNaN) {
+      val nanIndices = weighted(correlationId).zipWithIndex.filter { case (value, _) => value.isNaN || value == 0f }
+      // Check if there are any NaN values
+      if (nanIndices.nonEmpty) {
+        println("NaN values found at indices:")
+        nanIndices.foreach { case (_, index) => println(index) }
+      } else {
+        println("No NaN values found in the array.")
+      }
+    }
+
+    val endedAt = Instant.now
+    val duration = Duration.between(startedAt, endedAt).toMillis
+
+    if (counterTraining % Network.minibatchBuffer == 0 && Network.debug) {
+      println("-------------------------------------------")
+      println("Weighted init duration : " + duration)
+    }
+
+    if (!parameterSended) {
+      //    parameters("min") = weights.min.toString
+      //    parameters("max") = weights.max.toString
+      parameterSended = true
+    }
+
+    if (!LayerManager.IsLast(nextLayer)) {
+      val actorHiddenLayer = Network.LayersHiddenRef("hiddenLayer_" + nextLayer + "_0")
+      actorHiddenLayer ! ComputeActivation.ComputeZ(epoch, correlationId, yLabel, trainingCount, w1, 0, internalSubLayer, nextLayer, fromUCs,params)
+    }
+    else if (LayerManager.IsLast(nextLayer)) {
+        val actorOutputLayer = Network.LayersOutputRef("outputLayer_0" )
+        actorOutputLayer ! ComputeOutput.Compute(epoch, correlationId, yLabel, trainingCount, w1, 0, internalSubLayer, layer+1, fromUCs, params)
+    }
+    null
+
   }
 
   def BackPropagate(correlationId: String, delta: Array[Float], learningRate: Float, regularisation: Float, nInputs: Int, layer: Int, internalSubLayer: Int, fromInternalSubLayer: Int, params : scala.collection.mutable.HashMap[String,String], applyGrads:Boolean) : Boolean = {
@@ -330,8 +320,6 @@ class DenseWeightedLayer extends WeightedLayer {
           w2 = s
         else
           w2 = MatrixHelper.matrixSum(w2,s)
-
-
         this.weights = MatrixHelper.applyGradientsLight(w2, weights,Network.MiniBatch,learningRate / Network.MiniBatch, 1 - learningRate * (regularisation / nInputs))
       }
       else {
@@ -339,18 +327,22 @@ class DenseWeightedLayer extends WeightedLayer {
         val del2 = deltas2.values.flatten.toArray
         this.weights = MatrixHelper.applyGradients(del2, act2, Network.MiniBatch, learningRate / Network.MiniBatch, 1 - learningRate * (regularisation / nInputs), this.weights)
       }
-      gradientsSync.clear()
-      nablas_w_tmp2.clear()
-      fromInternalReceived.clear()
-      activation.clear()
-      backPropagateReceived.clear()
-      messagePropagateReceived.clear()
-      minibatch.clear()
-      nablas_w.clear()
-      weighted.clear()
-      deltas2.clear()
-      shardReceived.clear()
-      inProgress.clear()
+      this.gradientsSync.clear()
+      this.nablas_w_tmp2.clear()
+      this.fromInternalReceived.clear()
+      this.activation.clear()
+      this.backPropagateReceived.clear()
+      this.messagePropagateReceived.clear()
+      this.minibatch.clear()
+      this.nablas_w.clear()
+      this.weighted.clear()
+      this.deltas2.clear()
+      this.shardReceived.clear()
+      this.inProgress.clear()
+      this.shardReceived.clear()
+      this.syncReceived.clear()
+      this.callerBuffered.clear()
+      this.gradientsSync.clear()
       }
     true
   }

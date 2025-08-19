@@ -172,7 +172,7 @@ class ConvolutionInputLayer extends InputLayer {
               val mav = Normalisation.getMeanAndVariance(subArr)
               val result = Normalisation.batchNormalize(subArr, mav._1, mav._3, 0.1f, 0.1f)
               val actorHiddenLayer = Network.LayersHiddenRef("hiddenLayer_" + nextLayer + "_" + internalSubLayer)
-              actorHiddenLayer ! ComputeActivation.ComputeZ(epoch, keysIndexed(index), yLabel, Network.MiniBatchRange, result, internalSubLayer, 0, nextLayer, 1, null,null)
+              actorHiddenLayer ! ComputeActivation.ComputeZ(epoch, keysIndexed(index), yLabel, Network.MiniBatchRange, result, internalSubLayer, 0, nextLayer, 1, null)
               val test = 1
           }
 
@@ -183,7 +183,7 @@ class ConvolutionInputLayer extends InputLayer {
         val weighted = weighedfilters.flatten
         //for (i <-0 until actorsDim) {
         val actorHiddenLayer = Network.LayersHiddenRef("hiddenLayer_" + nextLayer + "_" + internalSubLayer)
-        actorHiddenLayer ! ComputeActivation.ComputeZ(epoch, correlationId, yLabel, Network.MiniBatchRange, weighted, internalSubLayer,0,  nextLayer, 1, null,null)
+        actorHiddenLayer ! ComputeActivation.ComputeZ(epoch, correlationId, yLabel, Network.MiniBatchRange, weighted, internalSubLayer,0,  nextLayer, 1, null)
       }
     weighedfilters
   }
