@@ -186,30 +186,6 @@ class DenseActivationLayer extends ActivationLayer {
         deltaSync(correlationId) = CostManager.sum2(deltaSync(correlationId), delta)
       }
       else {
-        /*
-        if (fromInternalSubLayer == 0) {
-          val act = delta.padTo(biasLength, 0.0f)
-          deltaSync(correlationId) = CostManager.sum2(deltaSync(correlationId), act)
-        }
-        else if ((fromInternalSubLayer+1) < shards) {
-          val test = Array.fill(biasLength)(0.0f)
-          if (biasLength%delta.length== 0) {
-            val index = multiplier*fromInternalSubLayer
-            Array.copy(delta, 0, test, index, delta.length)
-          }
-          else {
-            val padding = biasLength/shards
-            var index = multiplier*fromInternalSubLayer-1
-            Array.copy(delta, 0, test, index, delta.length)
-          }
-          deltaSync(correlationId) = CostManager.sum2(deltaSync(correlationId), test)
-        }
-        else if ( (fromInternalSubLayer+1) == shards) {
-          val act2 =  Array.fill(biasLength-delta.length)(0.0f) ++ delta
-          deltaSync(correlationId) = CostManager.sum2(deltaSync(correlationId), act2)
-        }
-        */
-
         val biasLength = bias.length
         if (fromInternalSubLayer == 0) {
           val act = delta.padTo(biasLength, 0.0f)
@@ -225,8 +201,6 @@ class DenseActivationLayer extends ActivationLayer {
           val act2 =  Array.fill(biasLength-delta.length)(0.0f) ++ delta
           deltaSync(correlationId) = CostManager.sum2(deltaSync(correlationId), act2)
         }
-
-
       }
     }
 
