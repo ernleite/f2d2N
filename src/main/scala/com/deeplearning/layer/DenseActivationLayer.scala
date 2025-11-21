@@ -65,29 +65,6 @@ class DenseActivationLayer extends ActivationLayer {
       weighted += (correlationId -> Array.fill[Float](activationLength)(0.0f))
     }
 
-    /*
-    if (shardReceived(correlationId) < shards) {
-      if (shardedWeighted.size == activationLength) {
-        if (!weighted.contains(correlationId))
-          weighted += (correlationId -> shardedWeighted)
-        else
-          weighted(correlationId) = CostManager.sum2(weighted(correlationId), shardedWeighted)
-      }
-      else {
-        val weightedLength = shardedWeighted.length
-        if (fromInternalSubLayer == 0) {
-          val act = shardedWeighted.padTo(activationLength, 0.0f)
-          weighted(correlationId) = CostManager.sum2(weighted(correlationId), act)
-        }
-        else  {
-          val act =  Array.fill(weightedLength*fromInternalSubLayer)(0.0f) ++ shardedWeighted.padTo(activationLength-(fromInternalSubLayer*weightedLength), 0.0f)
-          weighted(correlationId) = CostManager.sum2(weighted(correlationId), act)
-        }
-      }
-      shardReceived(correlationId) += 1
-    }
-     */
-
     if (shardReceived(correlationId) < shards) {
       if (shardedWeighted.size == activationLength) {
         if (!weighted.contains(correlationId))
